@@ -1,0 +1,41 @@
+definitions:
+  chatservice.Response:
+    properties:
+      keys:
+        items:
+          type: string
+        type: array
+      message:
+        type: string
+    type: object
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: Chat Service API
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Chat Service API
+  version: "1.0"
+paths:
+  /api/ws/:
+    get:
+      description: WebSocket
+      responses:
+        "200":
+          description: Successfully processed chat
+          schema:
+            $ref: '#/definitions/chatservice.Response'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/chatservice.Response'
+        "500":
+          description: Internal server error during processing
+          schema:
+            $ref: '#/definitions/chatservice.Response'
+      summary: WebSocket
+swagger: "2.0"
