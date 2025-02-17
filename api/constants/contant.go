@@ -6,6 +6,5 @@ const (
 
 	RoomsCollection    = "rooms"
 	MessagesCollection = "messages"
-	// @TODO: it will change in production, probably move to env
-	DatabaseName = "db_chat"
+	DatabaseName       = "db_chat"
 )
