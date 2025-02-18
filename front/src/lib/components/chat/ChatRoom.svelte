@@ -3,6 +3,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { fetchMessages } from '$lib/utils/chat';
 	import { auth } from '$lib/stores/auth';
+	import Lock from '$lib/components/icons/Lock.svelte';
 
 	export let room: Room;
 	export let userId: string;
@@ -155,36 +156,70 @@
 	}
 </script>
 
-<div class="flex h-[600px] flex-col rounded-lg border border-gray-200 bg-white">
-	<div class="flex items-center justify-between border-b border-gray-200 p-4">
-		<h2 class="text-lg font-semibold text-gray-900">Chat Room</h2>
+<div class="flex h-[600px] flex-col rounded-2xl bg-white shadow-lg">
+	<!-- Header -->
+	<div class="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+		<div class="flex items-center space-x-3">
+			<div
+				class="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-600"
+			>
+				<span class="text-lg font-semibold">{room.id?.slice(0, 2).toUpperCase()}</span>
+			</div>
+			<div>
+				<h2 class="text-lg font-semibold text-gray-900">Room #{room.id?.slice(0, 8)}</h2>
+				<div class="flex items-center gap-2 text-sm text-gray-500">
+					<span>{connected ? 'Connected' : 'Disconnected'}</span>
+					<span>•</span>
+					<span>as {nickname}</span>
+				</div>
+			</div>
+		</div>
 		<button
 			on:click={toggleRoomLock}
 			disabled={!connected}
-			class="rounded-md {isLocked && room.lockedBy === userId
-				? 'bg-green-600 hover:bg-green-700'
-				: 'bg-red-600 hover:bg-red-700'} px-4 py-2 text-sm text-white disabled:opacity-50"
+			class="rounded-xl px-4 py-2 text-sm font-medium transition-colors {isLocked &&
+			room.lockedBy === userId
+				? 'bg-red-50 text-red-700 hover:bg-red-100'
+				: 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'} disabled:opacity-50"
 		>
 			{#if isLocked}
-				{room.lockedBy === userId ? 'Unlock Room' : 'Locked by another user'}
+				{#if room.lockedBy === userId}
+					<span class="flex items-center gap-2">
+						<Lock />
+						Unlock Room
+					</span>
+				{:else}
+					<span class="flex items-center gap-2">
+						<Lock />
+						Locked
+					</span>
+				{/if}
 			{:else}
-				Lock Room
+				<span class="flex items-center gap-2">
+					<Lock />
+					Lock Room
+				</span>
 			{/if}
 		</button>
 	</div>
 
+	<!-- Messages -->
 	<div
 		bind:this={messageContainer}
 		on:scroll={handleScroll}
-		class="flex-1 space-y-4 overflow-y-auto p-4"
+		class="flex-1 space-y-4 overflow-y-auto px-6 py-4"
 	>
 		{#if loading && currentPage === 1}
-			<div class="text-center text-gray-500">Loading messages...</div>
+			<div class="flex justify-center">
+				<div class="rounded-lg bg-gray-50 px-4 py-2 text-sm text-gray-500">Loading messages...</div>
+			</div>
 		{/if}
 
 		{#if hasMore}
-			<div class="text-center text-sm text-gray-500">
-				{loading ? 'Loading more messages...' : 'Scroll up to load more'}
+			<div class="flex justify-center">
+				<div class="rounded-lg bg-gray-50 px-4 py-2 text-xs text-gray-500">
+					{loading ? 'Loading more messages...' : 'Scroll up to load more'}
+				</div>
 			</div>
 		{/if}
 
@@ -195,19 +230,30 @@
 					: 'justify-start'}"
 			>
 				<div
-					class="max-w-[70%] rounded-lg p-3 {message.sender_id === userId ||
+					class="max-w-[70%] space-y-1 {message.sender_id === userId ||
 					message.fromUserId === userId
-						? 'bg-indigo-100'
-						: 'bg-gray-100'}"
+						? 'items-end'
+						: 'items-start'}"
 				>
-					{#if message.type === 'system'}
-						<p class="text-sm italic text-gray-600">{message.content}</p>
-					{:else}
-						<p class="text-sm font-semibold text-gray-700">{message.nickname}</p>
-						<p class="text-gray-900">{message.content || message.message}</p>
-						<p class="mt-1 text-xs text-gray-500">
-							{new Date(message.timestamp || message.createdAt).toLocaleTimeString()}
-						</p>
+					{#if message.type !== 'system'}
+						<span class="text-xs font-medium text-gray-500">{message.nickname}</span>
+					{/if}
+					<div
+						class="rounded-2xl px-4 py-2 {message.type === 'system'
+							? 'bg-gray-100 text-sm italic text-gray-600'
+							: message.sender_id === userId || message.fromUserId === userId
+								? 'bg-indigo-600 text-white'
+								: 'bg-gray-100 text-gray-900'}"
+					>
+						<p>{message.content || message.message}</p>
+					</div>
+					{#if message.type !== 'system'}
+						<span class="text-xs text-gray-400">
+							{new Date(message.timestamp || message.createdAt).toLocaleTimeString([], {
+								hour: '2-digit',
+								minute: '2-digit'
+							})}
+						</span>
 					{/if}
 				</div>
 			</div>
@@ -215,24 +261,25 @@
 	</div>
 
 	{#if error}
-		<div class="p-2 text-center text-sm text-red-500">
+		<div class="border-t border-red-100 bg-red-50 px-6 py-3 text-center text-sm text-red-600">
 			{error}
 		</div>
 	{/if}
 
-	<div class="border-t border-gray-200 p-4">
-		<form on:submit|preventDefault={sendMessage} class="flex gap-2">
+	<!-- Input -->
+	<div class="border-t border-gray-200 px-6 py-4">
+		<form on:submit|preventDefault={sendMessage} class="flex space-x-4">
 			<input
 				type="text"
 				bind:value={messageInput}
 				placeholder={isLocked && room.lockedBy !== userId ? 'Room is locked' : 'Type a message...'}
 				disabled={!canSendMessage()}
-				class="flex-1 rounded-md border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none disabled:bg-gray-100 disabled:opacity-50"
+				class="flex-1 rounded-xl border-0 bg-gray-50 px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:bg-gray-100 focus:outline-none focus:ring-0 disabled:bg-gray-100 disabled:opacity-50"
 			/>
 			<button
 				type="submit"
 				disabled={!canSendMessage()}
-				class="rounded-md bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 disabled:opacity-50"
+				class="rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2 disabled:opacity-50"
 			>
 				Send
 			</button>
