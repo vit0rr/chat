@@ -238,6 +238,27 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 			continue
 		}
 
+		// If the room is locked by this user, unlock it when they send any message
+		if room.LockedBy == userID {
+			collection := s.Mongo.Collection(constants.RoomsCollection)
+			_, err = collection.UpdateOne(ctx,
+				bson.M{"_id": roomID},
+				bson.M{"$set": bson.M{"lockedBy": ""}})
+			if err != nil {
+				log.Error(ctx, "Failed to unlock room", log.ErrAttr(err))
+				continue
+			}
+
+			// Broadcast unlock message
+			s.broadcastToRoom(ctx, roomID, ChatMessage{
+				Type:      SystemMessage,
+				Content:   fmt.Sprintf("Room has been unlocked by %s", nickname),
+				RoomID:    roomID,
+				Timestamp: time.Now(),
+			})
+		}
+
+		// Check if user can send message
 		if room.LockedBy != "" && room.LockedBy != userID {
 			client.mu.Lock()
 			wsjson.Write(ctx, conn, ChatMessage{
@@ -278,14 +299,14 @@ func (s *Service) RegisterUser(c context.Context, b io.ReadCloser, dbClient *mon
 		return nil, fmt.Errorf("failed to check existing room: %v", err)
 	}
 
-	// If room exists, check if user is already registered
 	if existingRoom != nil {
 		for _, user := range existingRoom.Users {
 			if user.UserID == body.UserID {
-				log.Error(c, "User already registered in room",
+				// User is already registered, return the room without error
+				log.Info(c, "User rejoining existing room",
 					log.AnyAttr("room_id", body.RoomID),
 					log.AnyAttr("user_id", body.UserID))
-				return existingRoom, fmt.Errorf("user already registered in room")
+				return existingRoom, nil
 			}
 		}
 	}
@@ -370,6 +391,26 @@ func (s *Service) LockRoom(c context.Context, b io.ReadCloser) (interface{}, err
 		if user.UserID == body.UserID {
 			userNickname = user.Nickname
 		}
+	}
+
+	// Check if room is already locked by this user
+	if room.LockedBy == body.UserID {
+		// Unlock the room
+		_, err = collection.UpdateOne(c,
+			bson.M{"_id": body.RoomID},
+			bson.M{"$set": bson.M{"lockedBy": ""}})
+		if err != nil {
+			return nil, fmt.Errorf("failed to unlock room: %v", err)
+		}
+
+		s.broadcastToRoom(c, body.RoomID, ChatMessage{
+			Type:      SystemMessage,
+			Content:   fmt.Sprintf("Room has been unlocked by %s", userNickname),
+			RoomID:    body.RoomID,
+			Timestamp: time.Now(),
+		})
+
+		return map[string]string{"status": "room unlocked"}, nil
 	}
 
 	s.broadcastToRoom(c, body.RoomID, ChatMessage{
