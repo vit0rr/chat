@@ -1,0 +1,62 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Chat Service API",
+        "title": "Chat Service API",
+        "termsOfService": "http://swagger.io/terms/",
+        "contact": {
+            "name": "API Support",
+            "url": "http://www.swagger.io/support",
+            "email": "support@swagger.io"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        },
+        "version": "1.0"
+    },
+    "paths": {
+        "/api/ws/": {
+            "get": {
+                "description": "WebSocket",
+                "summary": "WebSocket",
+                "responses": {
+                    "200": {
+                        "description": "Successfully processed chat",
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error during processing",
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.Response"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "chatservice.Response": {
+            "type": "object",
+            "properties": {
+                "keys": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

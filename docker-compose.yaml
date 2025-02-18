@@ -1,0 +1,28 @@
+# URL: mongodb://docker:docker@localhost:27017
+# URL: redis://localhost:6379
+
+version: '3.8'
+
+services:
+  chat-mongo:
+    container_name: chat-service-mongo-database
+    platform: linux/amd64
+    image: mongo:4.4
+    env_file:
+      - .env
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: docker
+      MONGO_INITDB_ROOT_PASSWORD: docker
+    ports:
+      - '27017:27017'
+    volumes:
+      - ./data/mongo:/data
+
+  chat-redis:
+    container_name: chat-service-redis
+    image: redis:7.0-alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - ./data/redis:/data
+    command: redis-server --appendonly yes
