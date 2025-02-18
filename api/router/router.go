@@ -20,6 +20,22 @@ type Router struct {
 	chatService *chatService.HTTP
 }
 
+func cors(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func (router *Router) BuildRoutes(deps *deps.Deps) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
@@ -28,6 +44,7 @@ func (router *Router) BuildRoutes(deps *deps.Deps) *chi.Mux {
 
 	r.Use(telemetry.TelemetryMiddleware)
 	r.Use(chatService.JSONResponseMiddleware)
+	r.Use(cors)
 
 	swgUrl := func() string {
 		if deps.Config.Env.Env == "production" || deps.Config.Env.Env == "homologation" {

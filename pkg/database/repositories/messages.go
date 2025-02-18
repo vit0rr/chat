@@ -59,7 +59,7 @@ func GetMessages(ctx context.Context, db *mongo.Database, data GetMessagesData) 
 	collection := db.Collection(constants.MessagesCollection)
 
 	options := options.Find()
-	options.SetSort(bson.D{{Key: "createdAt", Value: -1}}) // Sort by newest first
+	options.SetSort(bson.D{{Key: "createdAt", Value: 1}}) // Sort by oldest first
 	options.SetLimit(data.Limit)
 	options.SetSkip(data.Skip)
 
