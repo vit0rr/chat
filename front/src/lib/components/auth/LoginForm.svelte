@@ -34,40 +34,49 @@
 	}
 </script>
 
-<form on:submit|preventDefault={handleSubmit} class="space-y-4">
-	<div>
-		<label for="email" class="block text-sm font-medium text-gray-700">Email</label>
-		<input
-			type="email"
-			id="email"
-			bind:value={formData.email}
-			required
-			class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-			placeholder="Enter your email"
-		/>
+<div class="w-full max-w-md p-8">
+	<div class="mb-8 text-center">
+		<h1 class="mb-3 text-4xl font-bold text-gray-900">Login</h1>
+		<p class="text-gray-600">Please login to continue</p>
 	</div>
 
-	<div>
-		<label for="password" class="block text-sm font-medium text-gray-700">Password</label>
-		<input
-			type="password"
-			id="password"
-			bind:value={formData.password}
-			required
-			class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-			placeholder="Enter your password"
-		/>
+	<div class="rounded-2xl border border-gray-100 bg-white p-8 shadow-lg">
+		<form on:submit|preventDefault={handleSubmit} class="space-y-6">
+			<div>
+				<label for="email" class="mb-2 block text-sm font-medium text-gray-700">Email</label>
+				<input
+					type="email"
+					id="email"
+					bind:value={formData.email}
+					required
+					class="block w-full rounded-xl px-4 py-3 text-gray-900 ring-1 ring-inset ring-gray-200 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm"
+					placeholder="Enter your email"
+				/>
+			</div>
+
+			<div>
+				<label for="password" class="mb-2 block text-sm font-medium text-gray-700">Password</label>
+				<input
+					type="password"
+					id="password"
+					bind:value={formData.password}
+					required
+					class="block w-full rounded-xl px-4 py-3 text-gray-900 ring-1 ring-inset ring-gray-200 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm"
+					placeholder="Enter your password"
+				/>
+			</div>
+
+			{#if error}
+				<div class="rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div>
+			{/if}
+
+			<button
+				type="submit"
+				disabled={loading}
+				class="w-full rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+			>
+				{loading ? 'Logging in...' : 'Login'}
+			</button>
+		</form>
 	</div>
-
-	{#if error}
-		<div class="text-sm text-red-500">{error}</div>
-	{/if}
-
-	<button
-		type="submit"
-		disabled={loading}
-		class="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
-	>
-		{loading ? 'Logging in...' : 'Login'}
-	</button>
-</form>
+</div>

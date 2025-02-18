@@ -16,32 +16,27 @@
 	<div class="mx-auto max-w-3xl">
 		{#if !$auth.token}
 			<div class="mx-auto max-w-md">
-				<div class="text-center">
-					<h1 class="text-3xl font-bold">Login</h1>
-					<p class="mt-2 text-gray-600">Please login to continue</p>
-				</div>
-
-				<div class="mt-8 bg-white px-4 py-8 shadow sm:rounded-lg sm:px-10">
-					<LoginForm onLoggedIn={() => {}} />
-				</div>
+				<LoginForm onLoggedIn={() => {}} />
 			</div>
 		{:else if !currentRoom}
 			<div class="mx-auto max-w-md">
-				<div class="text-center">
-					<h1 class="text-3xl font-bold">Chat Room Registration/Login</h1>
-					<p class="mt-2 text-gray-600">Enter a room ID to join a chat room</p>
+				<div class="mb-8 text-center">
+					<h1 class="mb-3 text-4xl font-bold text-gray-900">Chat Room</h1>
+					<p class="text-gray-600">Enter a room ID to join a chat room</p>
 				</div>
 
-				<div class="mt-8 bg-white px-4 py-8 shadow sm:rounded-lg sm:px-10">
+				<div class="rounded-2xl border border-gray-100 bg-white p-8 shadow-lg">
 					<RegisterForm on:registered={handleRegistered} />
 				</div>
 			</div>
 		{:else}
-			<ChatRoom
-				room={currentRoom}
-				userId={$auth.user?.id ?? ''}
-				nickname={$auth.user?.nickname ?? ''}
-			/>
+			<div class="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-lg">
+				<ChatRoom
+					room={currentRoom}
+					userId={$auth.user?.id ?? ''}
+					nickname={$auth.user?.nickname ?? ''}
+				/>
+			</div>
 		{/if}
 	</div>
 </div>
