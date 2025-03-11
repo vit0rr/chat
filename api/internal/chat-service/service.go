@@ -481,9 +481,6 @@ func (s *Service) RegisterUser(c context.Context, b io.ReadCloser, db *mongo.Dat
 		RoomID: roomID,
 	})
 
-	// print err as error instead of memory address
-	// fmt.Println("err", err.Error())
-
 	if err != nil {
 		log.Error(c, constants.ErrorMessages[constants.FailedToCheckExistingRoom].Message, log.ErrAttr(err))
 		if svcErr := NewServiceError(err.Error()); svcErr != nil {

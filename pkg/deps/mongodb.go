@@ -41,24 +41,6 @@ func CreateKeyIndex(ctx context.Context, db *mongo.Database) error {
 
 	log.Info(ctx, "✅ Created/Verified compound unique index for '_id' and 'users.userId' fields in 'rooms' collection")
 
-	// create client index for apiKey
-	collection = db.Collection(constants.ClientsCollection)
-
-	clientIndex := mongo.IndexModel{
-		Keys: bson.D{
-			{Key: "apiKey", Value: 1},
-			{Key: "slug", Value: 1},
-		},
-		Options: options.Index().SetUnique(true),
-	}
-
-	_, err = collection.Indexes().CreateOne(ctx, clientIndex)
-	if err != nil {
-		return fmt.Errorf("failed to create client index: %v", err)
-	}
-
-	log.Info(ctx, "✅ Created/Verified unique index for 'apiKey' field in 'clients' collection")
-
 	return nil
 }
 
