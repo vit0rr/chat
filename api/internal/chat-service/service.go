@@ -19,6 +19,7 @@ import (
 	"github.com/vit0rr/chat/pkg/deps"
 	"github.com/vit0rr/chat/pkg/log"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -105,9 +106,9 @@ type GetUsersWhoSentMessagesInTheLastDaysQuery struct {
 }
 
 type GetUserContactsQuery struct {
-	ExternalID string `json:"external_id"`
-	PageStr    string `json:"page_str"`
-	LimitStr   string `json:"limit_str"`
+	ID       string `json:"id"`
+	PageStr  string `json:"page_str"`
+	LimitStr string `json:"limit_str"`
 }
 
 // RegisterUserResponse is the response of the register user
@@ -151,8 +152,8 @@ type RoomListDetails struct {
 }
 
 type RoomListUser struct {
-	ExternalID string `json:"external_id"`
-	Nickname   string `json:"nickname"`
+	ID       string `json:"id"`
+	Nickname string `json:"nickname"`
 }
 
 type ServiceError struct {
@@ -227,7 +228,7 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 
 	userAuthorized := false
 	for _, user := range room.Users {
-		if user.ExternalID == userID {
+		if user.ID == userID {
 			userAuthorized = true
 			break
 		}
@@ -270,8 +271,8 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 	}
 
 	repositories.UpdateUser(ctx, s.Mongo, repositories.UpdateUserData{
-		ExternalID: userID,
-		Activity:   &[]string{"online"}[0],
+		UserID:   userID,
+		Activity: &[]string{"online"}[0],
 	})
 
 	// Cleanup on disconnect
@@ -290,8 +291,8 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 		})
 
 		repositories.UpdateUser(ctx, s.Mongo, repositories.UpdateUserData{
-			ExternalID: userID,
-			Activity:   &[]string{"offline"}[0],
+			UserID:   userID,
+			Activity: &[]string{"offline"}[0],
 		})
 
 		// If room is empty, delete the keys
@@ -428,9 +429,13 @@ func (s *Service) RegisterUser(c context.Context, b io.ReadCloser, db *mongo.Dat
 	defer b.Close()
 
 	// Check if user exists
-	user, err := repositories.GetUser(c, db, repositories.GetUserData{
-		ExternalID: body.UserID,
-	})
+	var user *repositories.User
+	if body.UserID != "" {
+		user, err = repositories.GetUser(c, db, repositories.GetUserData{
+			UserID: body.UserID,
+		})
+	}
+
 	if err != nil {
 		if svcErr := NewServiceError(err.Error()); svcErr != nil {
 			if serviceErr, ok := svcErr.(ServiceError); ok {
@@ -445,23 +450,28 @@ func (s *Service) RegisterUser(c context.Context, b io.ReadCloser, db *mongo.Dat
 		return nil, newError("failed_to_get_user")
 	}
 
-	// Create user if they don't exist
-	if user == nil {
-		_, err = repositories.CreateUser(c, db, repositories.CreateUserData{
-			ExternalID: body.UserID,
-			Nickname:   body.Nickname,
-		})
-		if err != nil {
-			if svcErr := NewServiceError(err.Error()); svcErr != nil {
-				if serviceErr, ok := svcErr.(ServiceError); ok {
-					return nil, Error{
-						ErrorMessage: &serviceErr.Message,
-						ErrorID:      &serviceErr.ID,
-						ErrorCode:    &serviceErr.Code,
-					}
-				}
-			}
+	var userID string
 
+	// Set userID from existing user or create a new one
+	if user != nil {
+		// Use existing user's ID
+		userID = body.UserID
+	} else {
+		// Create new user
+		newUser, err := repositories.CreateUser(c, db, repositories.CreateUserData{
+			Nickname: body.Nickname,
+		})
+
+		if err != nil {
+			log.Error(c, "Failed to create user", log.ErrAttr(err))
+			return nil, newError("failed_to_create_user")
+		}
+
+		// Safely convert ObjectID to string
+		if oid, ok := newUser.InsertedID.(primitive.ObjectID); ok {
+			userID = oid.Hex()
+		} else {
+			log.Error(c, "Invalid InsertedID type", log.AnyAttr("type", fmt.Sprintf("%T", newUser.InsertedID)))
 			return nil, newError("failed_to_create_user")
 		}
 	}
@@ -470,6 +480,7 @@ func (s *Service) RegisterUser(c context.Context, b io.ReadCloser, db *mongo.Dat
 	existingRoom, err := repositories.GetRooms(c, db, repositories.GetRoomData{
 		RoomID: roomID,
 	})
+
 	if err != nil {
 		log.Error(c, constants.ErrorMessages[constants.FailedToCheckExistingRoom].Message, log.ErrAttr(err))
 		if svcErr := NewServiceError(err.Error()); svcErr != nil {
@@ -487,7 +498,7 @@ func (s *Service) RegisterUser(c context.Context, b io.ReadCloser, db *mongo.Dat
 
 	if existingRoom != nil {
 		for _, user := range existingRoom.Users {
-			if user.ExternalID == body.UserID {
+			if user.ID == body.UserID {
 				// User is already registered, return the room without error
 				log.Info(c, "User rejoining existing room",
 					log.AnyAttr("room_id", roomID),
@@ -499,7 +510,7 @@ func (s *Service) RegisterUser(c context.Context, b io.ReadCloser, db *mongo.Dat
 
 	// Register new user in room
 	_, err = repositories.CreateRoom(c, db, repositories.CreateRoomData{
-		UserID:   body.UserID,
+		UserID:   userID,
 		RoomID:   roomID,
 		Nickname: body.Nickname,
 	})
@@ -613,7 +624,7 @@ func (s *Service) LockRoom(c context.Context, b io.ReadCloser, roomID string) (i
 
 	userAuthorized := false
 	for _, user := range room.Users {
-		if user.ExternalID == body.UserID {
+		if user.ID == body.UserID {
 			userAuthorized = true
 			break
 		}
@@ -670,7 +681,7 @@ func (s *Service) LockRoom(c context.Context, b io.ReadCloser, roomID string) (i
 
 	userNickname := ""
 	for _, user := range roomToLock.Users {
-		if user.ExternalID == body.UserID {
+		if user.ID == body.UserID {
 			userNickname = user.Nickname
 		}
 	}
@@ -866,10 +877,9 @@ func (s *Service) GetUsers(ctx context.Context, query GetUsersQuery) (interface{
 	return users, nil
 }
 
-func (s *Service) GetUser(ctx context.Context, externalID string) (interface{}, error) {
-	// TODO: maybe this method should also return all the rooms where the user is registered
+func (s *Service) GetUser(ctx context.Context, userID string) (interface{}, error) {
 	user, err := repositories.GetUser(ctx, s.Mongo, repositories.GetUserData{
-		ExternalID: externalID,
+		UserID: userID,
 	})
 
 	if err != nil {
@@ -877,7 +887,7 @@ func (s *Service) GetUser(ctx context.Context, externalID string) (interface{}, 
 	}
 
 	rooms, err := repositories.GetAllRoomsWhereUserIsRegistered(ctx, s.Mongo, repositories.GetUserData{
-		ExternalID: externalID,
+		UserID: userID,
 	})
 
 	if err != nil {
@@ -890,7 +900,24 @@ func (s *Service) GetUser(ctx context.Context, externalID string) (interface{}, 
 	}, nil
 }
 
-func (s *Service) UpdateUser(ctx context.Context, externalID string, body io.ReadCloser) (interface{}, error) {
+func (s *Service) CreateUser(ctx context.Context, body io.ReadCloser) (interface{}, error) {
+	defer body.Close()
+
+	var user repositories.CreateUserData
+	err := json.NewDecoder(body).Decode(&user)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode user: %v", err)
+	}
+
+	result, err := repositories.CreateUser(ctx, s.Mongo, user)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create user: %v", err)
+	}
+
+	return result, nil
+}
+
+func (s *Service) UpdateUser(ctx context.Context, ID string, body io.ReadCloser) (interface{}, error) {
 	defer body.Close()
 
 	var user repositories.UpdateUserData
@@ -899,7 +926,7 @@ func (s *Service) UpdateUser(ctx context.Context, externalID string, body io.Rea
 		return nil, fmt.Errorf("failed to decode user: %v", err)
 	}
 
-	user.ExternalID = externalID
+	user.UserID = ID
 
 	result, err := repositories.UpdateUser(ctx, s.Mongo, user)
 	if err != nil {
@@ -1000,8 +1027,8 @@ func (s *Service) GetRooms(ctx context.Context, query GetRoomsQuery) (RoomsList,
 		responseUsers := []RoomListUser{}
 		for _, user := range room.Users {
 			responseUsers = append(responseUsers, RoomListUser{
-				ExternalID: user.ExternalID,
-				Nickname:   user.Nickname,
+				ID:       user.ID,
+				Nickname: user.Nickname,
 			})
 		}
 
@@ -1081,66 +1108,6 @@ func (s *Service) GetOnlineUsersFromAllRooms(ctx context.Context, query GetOnlin
 	}
 
 	return users, nil
-}
-
-func (s *Service) RegisterClient(ctx context.Context, body io.ReadCloser) (interface{}, error) {
-	defer body.Close()
-
-	var client repositories.CreateClientData
-	err := json.NewDecoder(body).Decode(&client)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode client: %v", err)
-	}
-
-	_, err = repositories.CreateClient(ctx, s.Mongo, client)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create client: %v", err)
-	}
-
-	return map[string]string{"status": "client registered"}, nil
-}
-
-func (s *Service) GetClient(ctx context.Context, slug string) (repositories.Client, error) {
-	client, err := repositories.GetClient(ctx, s.Mongo, repositories.GetClientData{
-		Slug: slug,
-	})
-
-	if err != nil {
-		return repositories.Client{}, fmt.Errorf("failed to get client: %v", err)
-	}
-
-	return *client, nil
-}
-
-func (s *Service) UpdateClient(ctx context.Context, slug string, body io.ReadCloser) (interface{}, error) {
-	defer body.Close()
-
-	var client repositories.UpdateClientData
-	err := json.NewDecoder(body).Decode(&client)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode client: %v", err)
-	}
-
-	client.Slug = &slug
-
-	result, err := repositories.UpdateClient(ctx, s.Mongo, client)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update client: %v", err)
-	}
-
-	return result, nil
-}
-
-func (s *Service) DeleteClient(ctx context.Context, slug string) (interface{}, error) {
-
-	result, err := repositories.DeleteClient(ctx, s.Mongo, repositories.DeleteClientData{
-		Slug: slug,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to update client: %v", err)
-	}
-
-	return result, nil
 }
 
 func (s *Service) GetTotalMessagesSent(ctx context.Context) (int64, error) {
@@ -1237,7 +1204,7 @@ func (s *Service) GetUserContacts(ctx context.Context, query GetUserContactsQuer
 
 	skip := int64((page - 1) * limit)
 	cursor, err := repositories.GetUserContacts(ctx, s.Mongo, repositories.GetUserContactsData{
-		UserID: query.ExternalID,
+		UserID: query.ID,
 		Limit:  int64(limit),
 		Skip:   skip,
 	})

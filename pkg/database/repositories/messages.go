@@ -142,7 +142,7 @@ func UsersWhoSentMessagesInTheLastDays(ctx context.Context, db *mongo.Database, 
 			"$lookup": bson.M{
 				"from":         constants.UsersCollection,
 				"localField":   "_id",
-				"foreignField": "externalId",
+				"foreignField": "id",
 				"as":           "user",
 			},
 		},
@@ -152,7 +152,7 @@ func UsersWhoSentMessagesInTheLastDays(ctx context.Context, db *mongo.Database, 
 		{
 			"$project": bson.M{
 				"_id":           0,
-				"externalId":    "$user.externalId",
+				"id":            "$user.id",
 				"nickname":      "$user.nickname",
 				"status":        "$user.status",
 				"activity":      "$user.activity",

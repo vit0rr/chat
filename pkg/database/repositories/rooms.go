@@ -21,8 +21,8 @@ type Room struct {
 }
 
 type UserRef struct {
-	ExternalID string `bson:"externalId"`
-	Nickname   string `bson:"nickname"`
+	ID       string `bson:"id"`
+	Nickname string `bson:"nickname"`
 }
 
 type CreateRoomData struct {
@@ -54,8 +54,8 @@ func CreateRoom(ctx context.Context, db *mongo.Database, data CreateRoomData) (*
 		},
 		"$addToSet": bson.M{
 			"users": UserRef{
-				ExternalID: data.UserID,
-				Nickname:   data.Nickname,
+				ID:       data.UserID,
+				Nickname: data.Nickname,
 			},
 		},
 	}
@@ -77,9 +77,10 @@ func GetRooms(ctx context.Context, db *mongo.Database, data GetRoomData) (*Room,
 	filter := bson.M{"_id": data.RoomID}
 
 	err := collection.FindOne(ctx, filter).Decode(&room)
+	// fmt.Println("eraaaar", err)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			return nil, errors.New(constants.ErrorMessages[constants.RoomNotFound].Message)
+			return nil, nil
 		}
 		log.Error(ctx, "Failed to get room", log.ErrAttr(err))
 		return nil, errors.New(constants.ErrorMessages[constants.FailedToGetRooms].Message)
@@ -133,7 +134,7 @@ func GetAllRoomsWhereUserIsRegistered(ctx context.Context, db *mongo.Database, d
 
 	opts := options.Find().SetProjection(bson.M{"users": 0})
 
-	cursor, err := collection.Find(ctx, bson.M{"users.externalId": data.ExternalID}, opts)
+	cursor, err := collection.Find(ctx, bson.M{"users.id": data.UserID}, opts)
 	if err != nil {
 		log.Error(ctx, "Failed to get all rooms where user is registered", log.ErrAttr(err))
 		return nil, err
