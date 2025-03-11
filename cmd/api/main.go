@@ -17,9 +17,9 @@ import (
 	"github.com/vit0rr/chat/shared"
 )
 
-// @title Chat Service API
+// @title Chat API
 // @version 1.0
-// @description Chat Service API
+// @description Chat API
 // @termsOfService http://swagger.io/terms/
 
 // @contact.name API Support
@@ -65,6 +65,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	db := mongoClient.Database(shared.DatabaseName)
+
 	log.Info(ctx, "✅ Connected to MongoDB")
 
 	defer func() {
@@ -74,9 +76,13 @@ func main() {
 		}
 	}()
 
-	err = deps.CreateKeyIndex(ctx, mongoClient)
-	if err != nil {
+	if err := deps.CreateKeyIndex(ctx, db); err != nil {
 		log.Error(ctx, "❌ Failed to create key index", log.ErrAttr(err))
+		os.Exit(1)
+	}
+
+	if err := deps.CreateMessagesTTLIndex(ctx, db); err != nil {
+		log.Error(ctx, "❌ Failed to create messages TTL index", log.ErrAttr(err))
 		os.Exit(1)
 	}
 
@@ -88,13 +94,18 @@ func main() {
 
 	log.Info(ctx, "✅ Connected to Redis")
 
-	dependencies := deps.New(cfg, mongoClient)
+	dependencies := deps.New(cfg, db)
 
-	httpServer := server.New(ctx, dependencies, mongoClient.Database(shared.DatabaseName), redisClient)
+	if err := deps.RecoverUserStatuses(ctx, db, redisClient); err != nil {
+		log.Error(ctx, "❌ Failed to recover user statuses", log.ErrAttr(err))
+		os.Exit(1)
+	}
+
+	httpServer := server.New(ctx, dependencies, db, redisClient)
 
 	// Start cleanup routine
 	go func() {
-		ticker := time.NewTicker(1 * time.Hour) // 1h, we can increase it later
+		ticker := time.NewTicker(10 * time.Minute) // 10m, we can increase/decrease it later
 		defer ticker.Stop()
 
 		for {
@@ -112,6 +123,10 @@ func main() {
 		sigint := make(chan os.Signal, 1)
 		signal.Notify(sigint, os.Interrupt)
 		<-sigint
+
+		if err := deps.UpdateAllOnlineUsersToOffline(ctx, db); err != nil {
+			log.Error(ctx, "❌ Failed to update all online users to offline", log.ErrAttr(err))
+		}
 
 		// We received an interrupt signal, shut down.
 		if err := httpServer.Shutdown(ctx); err != nil {

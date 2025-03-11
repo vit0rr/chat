@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/vit0rr/chat/api/constants"
@@ -13,16 +14,15 @@ import (
 
 type Room struct {
 	ID        string    `bson:"_id" json:"id"`
-	Users     []User    `bson:"users" json:"users"`
+	Users     []UserRef `bson:"users" json:"users"`
 	LockedBy  string    `bson:"lockedBy,omitempty" json:"lockedBy,omitempty"`
 	CreatedAt time.Time `bson:"createdAt" json:"createdAt"`
 	UpdatedAt time.Time `bson:"updatedAt" json:"updatedAt"`
 }
 
-type User struct {
-	UserID   string    `bson:"userId" json:"userId"`
-	Nickname string    `bson:"nickname" json:"nickname"`
-	JoinedAt time.Time `bson:"joinedAt" json:"joinedAt"`
+type UserRef struct {
+	ExternalID string `bson:"externalId"`
+	Nickname   string `bson:"nickname"`
 }
 
 type CreateRoomData struct {
@@ -33,6 +33,11 @@ type CreateRoomData struct {
 
 type GetRoomData struct {
 	RoomID string `json:"roomId"`
+}
+
+type GetRoomsCursorData struct {
+	Limit int64
+	Skip  int64
 }
 
 func CreateRoom(ctx context.Context, db *mongo.Database, data CreateRoomData) (*mongo.UpdateResult, error) {
@@ -48,10 +53,9 @@ func CreateRoom(ctx context.Context, db *mongo.Database, data CreateRoomData) (*
 			"updatedAt": now,
 		},
 		"$addToSet": bson.M{
-			"users": User{
-				UserID:   data.UserID,
-				Nickname: data.Nickname,
-				JoinedAt: now,
+			"users": UserRef{
+				ExternalID: data.UserID,
+				Nickname:   data.Nickname,
 			},
 		},
 	}
@@ -59,8 +63,8 @@ func CreateRoom(ctx context.Context, db *mongo.Database, data CreateRoomData) (*
 	opts := options.Update().SetUpsert(true)
 	result, err := collection.UpdateOne(ctx, filter, update, opts)
 	if err != nil {
-		log.Error(ctx, "Failed to create/update room", log.ErrAttr(err))
-		return nil, err
+		log.Error(ctx, constants.ErrorMessages[constants.FailedToCreateOrUpdateRoom].Message, log.ErrAttr(err))
+		return nil, errors.New(constants.ErrorMessages[constants.FailedToCreateOrUpdateRoom].Message)
 	}
 
 	return result, nil
@@ -75,11 +79,71 @@ func GetRooms(ctx context.Context, db *mongo.Database, data GetRoomData) (*Room,
 	err := collection.FindOne(ctx, filter).Decode(&room)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			return nil, nil
+			return nil, errors.New(constants.ErrorMessages[constants.RoomNotFound].Message)
 		}
 		log.Error(ctx, "Failed to get room", log.ErrAttr(err))
-		return nil, err
+		return nil, errors.New(constants.ErrorMessages[constants.FailedToGetRooms].Message)
 	}
 
 	return &room, nil
+}
+
+func GetRoom(ctx context.Context, db *mongo.Database, data GetRoomData) (*Room, error) {
+	collection := db.Collection(constants.RoomsCollection)
+
+	var room Room
+	filter := bson.M{"_id": data.RoomID}
+
+	err := collection.FindOne(ctx, filter).Decode(&room)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, errors.New(constants.ErrorMessages[constants.RoomNotFound].Message)
+		}
+		log.Error(ctx, "Failed to get room", log.ErrAttr(err))
+		return nil, errors.New(constants.ErrorMessages[constants.FailedToGetRooms].Message)
+	}
+
+	return &room, nil
+}
+
+func GetRoomsCursor(ctx context.Context, db *mongo.Database, data GetRoomsCursorData) (*mongo.Cursor, error) {
+	collection := db.Collection(constants.RoomsCollection)
+
+	options := options.Find()
+	options.SetSort(bson.D{{Key: "createdAt", Value: -1}}) // Sort by newest first
+	options.SetLimit(data.Limit)
+	options.SetSkip(data.Skip)
+
+	cursor, err := collection.Find(ctx, bson.M{}, options)
+	if err == mongo.ErrNoDocuments {
+		log.Error(ctx, "Room not found", log.ErrAttr(err))
+		return nil, errors.New(constants.ErrorMessages[constants.RoomNotFound].Message)
+	}
+
+	if err != nil {
+		log.Error(ctx, "Failed to get rooms", log.ErrAttr(err))
+		return nil, errors.New(constants.ErrorMessages[constants.FailedToGetRooms].Message)
+	}
+
+	return cursor, nil
+}
+
+func GetAllRoomsWhereUserIsRegistered(ctx context.Context, db *mongo.Database, data GetUserData) ([]Room, error) {
+	collection := db.Collection(constants.RoomsCollection)
+
+	opts := options.Find().SetProjection(bson.M{"users": 0})
+
+	cursor, err := collection.Find(ctx, bson.M{"users.externalId": data.ExternalID}, opts)
+	if err != nil {
+		log.Error(ctx, "Failed to get all rooms where user is registered", log.ErrAttr(err))
+		return nil, err
+	}
+
+	rooms := []Room{}
+	err = cursor.All(ctx, &rooms)
+	if err != nil {
+		log.Error(ctx, "Failed to get all rooms where user is registered", log.ErrAttr(err))
+		return nil, err
+	}
+	return rooms, nil
 }

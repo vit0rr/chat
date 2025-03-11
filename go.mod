@@ -1,12 +1,13 @@
 module github.com/vit0rr/chat
 
-go 1.23.4
+go 1.24.1
 
 require (
 	github.com/coder/websocket v1.8.12
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/hashicorp/hcl/v2 v2.23.0
 	github.com/joho/godotenv v1.5.1
+	github.com/redis/go-redis/v9 v9.7.0
 	github.com/segmentio/ksuid v1.0.4
 	github.com/swaggo/http-swagger v1.3.4
 	github.com/swaggo/swag v1.16.4
@@ -32,7 +33,6 @@ require (
 	github.com/mailru/easyjson v0.7.6 // indirect
 	github.com/mitchellh/go-wordwrap v0.0.0-20150314170334-ad45545899c7 // indirect
 	github.com/montanaflynn/stats v0.7.1 // indirect
-	github.com/redis/go-redis/v9 v9.7.0 // indirect
 	github.com/rogpeppe/go-internal v1.13.1 // indirect
 	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/swaggo/files v0.0.0-20220610200504-28940afbdbfe // indirect

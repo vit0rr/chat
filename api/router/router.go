@@ -20,22 +20,6 @@ type Router struct {
 	chatService *chatService.HTTP
 }
 
-func cors(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
-		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
 func (router *Router) BuildRoutes(deps *deps.Deps) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
@@ -44,7 +28,6 @@ func (router *Router) BuildRoutes(deps *deps.Deps) *chi.Mux {
 
 	r.Use(telemetry.TelemetryMiddleware)
 	r.Use(chatService.JSONResponseMiddleware)
-	r.Use(cors)
 
 	swgUrl := func() string {
 		if deps.Config.Env.Env == "production" || deps.Config.Env.Env == "homologation" {
@@ -54,11 +37,40 @@ func (router *Router) BuildRoutes(deps *deps.Deps) *chi.Mux {
 		return fmt.Sprintf("http://%s:%s/swagger/doc.json", deps.Config.Env.Host, deps.Config.Env.Port)
 	}
 
-	r.Route("/api", func(r chi.Router) {
+	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/ws", telemetry.HandleFuncLogger(router.chatService.WebSocket))
-		r.Post("/register-user", telemetry.HandleFuncLogger(router.chatService.RegisterUser))
-		r.Get("/messages", telemetry.HandleFuncLogger(router.chatService.GetMessages))
-		r.Post("/rooms/lock", telemetry.HandleFuncLogger(router.chatService.LockRoom))
+		r.Route("/rooms", func(r chi.Router) {
+			r.Get("/", telemetry.HandleFuncLogger(router.chatService.GetRooms))
+			r.Get("/{roomId}", telemetry.HandleFuncLogger(router.chatService.GetRoom))
+			r.Get("/{roomId}/messages", telemetry.HandleFuncLogger(router.chatService.GetMessages))
+			r.Get("/{roomId}/online-users", telemetry.HandleFuncLogger(router.chatService.GetOnlineUsersFromARoom))
+			r.Post("/{roomId}/register-user", telemetry.HandleFuncLogger(router.chatService.RegisterUser))
+			r.Post("/{roomId}/lock", telemetry.HandleFuncLogger(router.chatService.LockRoom))
+		})
+		r.Route("/users", func(r chi.Router) {
+			r.Get("/", telemetry.HandleFuncLogger(router.chatService.GetUsers))
+			r.Get("/{externalId}", telemetry.HandleFuncLogger(router.chatService.GetUser))
+			r.Get("/all-online-users", telemetry.HandleFuncLogger(router.chatService.GetOnlineUsersFromAllRooms))
+			r.Get("/{externalId}/contacts", telemetry.HandleFuncLogger(router.chatService.GetUserContacts))
+			r.Patch("/{externalId}", telemetry.HandleFuncLogger(router.chatService.UpdateUser))
+		})
+		r.Route("/clients", func(r chi.Router) {
+			r.Get("/{slug}", telemetry.HandleFuncLogger(router.chatService.GetClient))
+			r.Post("/", telemetry.HandleFuncLogger(router.chatService.RegisterClient))
+			r.Patch("/{slug}", telemetry.HandleFuncLogger(router.chatService.UpdateClient))
+			r.Delete("/{slug}", telemetry.HandleFuncLogger(router.chatService.DeleteClient))
+		})
+
+		r.Route("/messages", func(r chi.Router) {
+			r.Route("/total-sent", func(r chi.Router) {
+				r.Get("/", telemetry.HandleFuncLogger(router.chatService.GetTotalMessagesSent))
+				r.Get("/{roomId}", telemetry.HandleFuncLogger(router.chatService.GetTotalMessagesSentInARoom))
+			})
+		})
+
+		r.Route("/analytics", func(r chi.Router) {
+			r.Get("/user-last-messages", telemetry.HandleFuncLogger(router.chatService.GetUsersWhoSentMessagesInTheLastDays))
+		})
 	})
 
 	r.Group(func(r chi.Router) {

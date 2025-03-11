@@ -7,12 +7,12 @@ import (
 
 type Deps struct {
 	Config config.Config
-	Mongo  *mongo.Client
+	Mongo  *mongo.Database
 }
 
-func New(config config.Config, mongoClient *mongo.Client) *Deps {
+func New(config config.Config, db *mongo.Database) *Deps {
 	return &Deps{
 		Config: config,
-		Mongo:  mongoClient,
+		Mongo:  db,
 	}
 }

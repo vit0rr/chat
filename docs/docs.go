@@ -24,6 +24,130 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/get-messages/": {
+            "get": {
+                "description": "Will return the messages of a room. It receives a room_id, page and limit by query params.",
+                "summary": "GetMessages",
+                "responses": {
+                    "200": {
+                        "description": "Successfully processed chat",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/chatservice.ChatMessage"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error during processing",
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/get-rooms/": {
+            "get": {
+                "description": "Returns a paginated list of all chat rooms",
+                "summary": "GetRooms",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "Items per page (default: 10)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of chat rooms retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.RoomList"
+                        }
+                    },
+                    "404": {
+                        "description": "Room not found",
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error during processing",
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/lock-room/": {
+            "post": {
+                "description": "Will lock a room for the user. If the room is already locked by the user, it will unlock the room.",
+                "summary": "LockRoom",
+                "responses": {
+                    "200": {
+                        "description": "Successfully processed chat",
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error during processing",
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/register-user/": {
+            "post": {
+                "description": "Will register a user in a room. If the user is already registered, it will return the room without error.",
+                "summary": "RegisterUser",
+                "responses": {
+                    "200": {
+                        "description": "Successfully processed chat",
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.RegisterUserResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error during processing",
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/ws/": {
             "get": {
                 "description": "WebSocket",
@@ -52,6 +176,82 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "chatservice.ChatMessage": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "description": "Actual message content",
+                    "type": "string"
+                },
+                "nickname": {
+                    "description": "Sender's display name",
+                    "type": "string"
+                },
+                "room_id": {
+                    "description": "Room the message belongs to",
+                    "type": "string"
+                },
+                "sender_id": {
+                    "description": "ID of message sender",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "When message was sent",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "Type of message (text/system)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/chatservice.MessageType"
+                        }
+                    ]
+                }
+            }
+        },
+        "chatservice.Error": {
+            "type": "object",
+            "properties": {
+                "error_code": {
+                    "type": "integer"
+                },
+                "error_id": {
+                    "type": "string"
+                },
+                "error_message": {
+                    "type": "string"
+                }
+            }
+        },
+        "chatservice.MessageType": {
+            "type": "string",
+            "enum": [
+                "text",
+                "system"
+            ],
+            "x-enum-comments": {
+                "SystemMessage": "System notifications and alerts",
+                "TextMessage": "Regular chat messages"
+            },
+            "x-enum-varnames": [
+                "TextMessage",
+                "SystemMessage"
+            ]
+        },
+        "chatservice.RegisterUserResponse": {
+            "type": "object",
+            "properties": {
+                "nickname": {
+                    "type": "string"
+                },
+                "room_id": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
         "chatservice.Response": {
             "type": "object",
             "properties": {
@@ -62,6 +262,51 @@ const docTemplate = `{
                     }
                 },
                 "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "chatservice.RoomDetails": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "locked_by": {
+                    "type": "string"
+                },
+                "room_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "users": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/chatservice.RoomUser"
+                    }
+                }
+            }
+        },
+        "chatservice.RoomList": {
+            "type": "object",
+            "properties": {
+                "rooms": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/chatservice.RoomDetails"
+                    }
+                }
+            }
+        },
+        "chatservice.RoomUser": {
+            "type": "object",
+            "properties": {
+                "external_id": {
+                    "type": "string"
+                },
+                "nickname": {
                     "type": "string"
                 }
             }

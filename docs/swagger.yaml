@@ -1,4 +1,55 @@
 definitions:
+  chatservice.ChatMessage:
+    properties:
+      content:
+        description: Actual message content
+        type: string
+      nickname:
+        description: Sender's display name
+        type: string
+      room_id:
+        description: Room the message belongs to
+        type: string
+      sender_id:
+        description: ID of message sender
+        type: string
+      timestamp:
+        description: When message was sent
+        type: string
+      type:
+        allOf:
+        - $ref: '#/definitions/chatservice.MessageType'
+        description: Type of message (text/system)
+    type: object
+  chatservice.Error:
+    properties:
+      error_code:
+        type: integer
+      error_id:
+        type: string
+      error_message:
+        type: string
+    type: object
+  chatservice.MessageType:
+    enum:
+    - text
+    - system
+    type: string
+    x-enum-comments:
+      SystemMessage: System notifications and alerts
+      TextMessage: Regular chat messages
+    x-enum-varnames:
+    - TextMessage
+    - SystemMessage
+  chatservice.RegisterUserResponse:
+    properties:
+      nickname:
+        type: string
+      room_id:
+        type: string
+      user_id:
+        type: string
+    type: object
   chatservice.Response:
     properties:
       keys:
@@ -6,6 +57,35 @@ definitions:
           type: string
         type: array
       message:
+        type: string
+    type: object
+  chatservice.RoomDetails:
+    properties:
+      created_at:
+        type: string
+      locked_by:
+        type: string
+      room_id:
+        type: string
+      updated_at:
+        type: string
+      users:
+        items:
+          $ref: '#/definitions/chatservice.RoomUser'
+        type: array
+    type: object
+  chatservice.RoomList:
+    properties:
+      rooms:
+        items:
+          $ref: '#/definitions/chatservice.RoomDetails'
+        type: array
+    type: object
+  chatservice.RoomUser:
+    properties:
+      external_id:
+        type: string
+      nickname:
         type: string
     type: object
 info:
@@ -21,6 +101,91 @@ info:
   title: Chat Service API
   version: "1.0"
 paths:
+  /api/get-messages/:
+    get:
+      description: Will return the messages of a room. It receives a room_id, page
+        and limit by query params.
+      responses:
+        "200":
+          description: Successfully processed chat
+          schema:
+            items:
+              $ref: '#/definitions/chatservice.ChatMessage'
+            type: array
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/chatservice.Response'
+        "500":
+          description: Internal server error during processing
+          schema:
+            $ref: '#/definitions/chatservice.Response'
+      summary: GetMessages
+  /api/get-rooms/:
+    get:
+      description: Returns a paginated list of all chat rooms
+      parameters:
+      - description: 'Page number (default: 1)'
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - description: 'Items per page (default: 10)'
+        in: query
+        maximum: 100
+        minimum: 1
+        name: limit
+        type: integer
+      responses:
+        "200":
+          description: List of chat rooms retrieved successfully
+          schema:
+            $ref: '#/definitions/chatservice.RoomList'
+        "404":
+          description: Room not found
+          schema:
+            $ref: '#/definitions/chatservice.Error'
+        "500":
+          description: Internal server error during processing
+          schema:
+            $ref: '#/definitions/chatservice.Error'
+      summary: GetRooms
+  /api/lock-room/:
+    post:
+      description: Will lock a room for the user. If the room is already locked by
+        the user, it will unlock the room.
+      responses:
+        "200":
+          description: Successfully processed chat
+          schema:
+            $ref: '#/definitions/chatservice.Response'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/chatservice.Response'
+        "500":
+          description: Internal server error during processing
+          schema:
+            $ref: '#/definitions/chatservice.Response'
+      summary: LockRoom
+  /api/register-user/:
+    post:
+      description: Will register a user in a room. If the user is already registered,
+        it will return the room without error.
+      responses:
+        "200":
+          description: Successfully processed chat
+          schema:
+            $ref: '#/definitions/chatservice.RegisterUserResponse'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/chatservice.Response'
+        "500":
+          description: Internal server error during processing
+          schema:
+            $ref: '#/definitions/chatservice.Response'
+      summary: RegisterUser
   /api/ws/:
     get:
       description: WebSocket

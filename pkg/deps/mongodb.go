@@ -3,6 +3,7 @@ package deps
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/vit0rr/chat/api/constants"
 	"github.com/vit0rr/chat/config"
@@ -21,23 +22,89 @@ func NewMongoClient(ctx context.Context, cfg config.Config) (*mongo.Client, erro
 	return mongoClient, nil
 }
 
-func CreateKeyIndex(ctx context.Context, dbClient *mongo.Client) error {
-	collection := dbClient.Database(constants.DatabaseName).Collection(constants.RoomsCollection)
+func CreateKeyIndex(ctx context.Context, db *mongo.Database) error {
+	// create room-user index for compound unique
+	collection := db.Collection(constants.RoomsCollection)
 
-	index := mongo.IndexModel{
+	roomUserIndex := mongo.IndexModel{
 		Keys: bson.D{
-			{Key: "userId", Value: 1},
-			{Key: "roomId", Value: 1},
+			{Key: "_id", Value: 1},
+			{Key: "users.userId", Value: 1},
 		},
 		Options: options.Index().SetUnique(true),
 	}
 
-	_, err := collection.Indexes().CreateOne(ctx, index)
+	_, err := collection.Indexes().CreateOne(ctx, roomUserIndex)
 	if err != nil {
-		return fmt.Errorf("failed to create index: %v", err)
+		return fmt.Errorf("failed to create room-user index: %v", err)
 	}
 
-	log.Info(ctx, "✅ Created/Verified compound unique index for 'userId' and 'roomId' fields in 'rooms' collection")
+	log.Info(ctx, "✅ Created/Verified compound unique index for '_id' and 'users.userId' fields in 'rooms' collection")
+
+	// create user index for externalId
+	collection = db.Collection(constants.UsersCollection)
+
+	userIndex := mongo.IndexModel{
+		Keys:    bson.D{{Key: "externalId", Value: 1}},
+		Options: options.Index().SetUnique(true),
+	}
+
+	_, err = collection.Indexes().CreateOne(ctx, userIndex)
+	if err != nil {
+		return fmt.Errorf("failed to create user index: %v", err)
+	}
+
+	log.Info(ctx, "✅ Created/Verified unique index for 'externalId' field in 'users' collection")
+
+	// create client index for apiKey
+	collection = db.Collection(constants.ClientsCollection)
+
+	clientIndex := mongo.IndexModel{
+		Keys: bson.D{
+			{Key: "apiKey", Value: 1},
+			{Key: "slug", Value: 1},
+		},
+		Options: options.Index().SetUnique(true),
+	}
+
+	_, err = collection.Indexes().CreateOne(ctx, clientIndex)
+	if err != nil {
+		return fmt.Errorf("failed to create client index: %v", err)
+	}
+
+	log.Info(ctx, "✅ Created/Verified unique index for 'apiKey' field in 'clients' collection")
 
 	return nil
+}
+
+func CreateMessagesTTLIndex(ctx context.Context, db *mongo.Database) error {
+	collection := db.Collection(constants.MessagesCollection)
+
+	messagesTTLIndex := mongo.IndexModel{
+		Keys:    bson.D{{Key: "createdAt", Value: 1}},
+		Options: options.Index().SetExpireAfterSeconds(90 * 24 * 60 * 60), // 90 days
+	}
+
+	_, err := collection.Indexes().CreateOne(ctx, messagesTTLIndex)
+	if err != nil {
+		return fmt.Errorf("failed to create messages TTL index: %v", err)
+	}
+
+	log.Info(ctx, "✅ Created/Verified TTL index for messages (90 days expiration)")
+
+	return nil
+}
+
+func UpdateAllOnlineUsersToOffline(ctx context.Context, db *mongo.Database) error {
+	collection := db.Collection(constants.UsersCollection)
+	_, err := collection.UpdateMany(
+		ctx,
+		bson.M{"activity": "online"},
+		bson.M{"$set": bson.M{
+			"activity":  "offline",
+			"updatedAt": time.Now(),
+		}},
+	)
+
+	return err
 }
