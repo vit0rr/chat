@@ -66,7 +66,7 @@ func RecoverUserStatuses(ctx context.Context, db *mongo.Database, redisClient *r
 			collection := db.Collection(constants.UsersCollection)
 			_, err = collection.UpdateMany(
 				ctx,
-				bson.M{"externalId": bson.M{"$in": members}},
+				bson.M{"id": bson.M{"$in": members}},
 				bson.M{"$set": bson.M{
 					"activity":  "online",
 					"updatedAt": time.Now(),

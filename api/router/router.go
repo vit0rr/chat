@@ -49,10 +49,10 @@ func (router *Router) BuildRoutes(deps *deps.Deps) *chi.Mux {
 		})
 		r.Route("/users", func(r chi.Router) {
 			r.Get("/", telemetry.HandleFuncLogger(router.chatService.GetUsers))
-			r.Get("/{externalId}", telemetry.HandleFuncLogger(router.chatService.GetUser))
+			r.Get("/{userId}", telemetry.HandleFuncLogger(router.chatService.GetUser))
 			r.Get("/all-online-users", telemetry.HandleFuncLogger(router.chatService.GetOnlineUsersFromAllRooms))
-			r.Get("/{externalId}/contacts", telemetry.HandleFuncLogger(router.chatService.GetUserContacts))
-			r.Patch("/{externalId}", telemetry.HandleFuncLogger(router.chatService.UpdateUser))
+			r.Get("/{userId}/contacts", telemetry.HandleFuncLogger(router.chatService.GetUserContacts))
+			r.Patch("/{userId}", telemetry.HandleFuncLogger(router.chatService.UpdateUser))
 		})
 		r.Route("/clients", func(r chi.Router) {
 			r.Get("/{slug}", telemetry.HandleFuncLogger(router.chatService.GetClient))

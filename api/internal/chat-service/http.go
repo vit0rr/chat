@@ -119,9 +119,9 @@ func (h *HTTP) GetUsers(w http.ResponseWriter, r *http.Request) (interface{}, er
 }
 
 func (h *HTTP) GetUser(w http.ResponseWriter, r *http.Request) (interface{}, error) {
-	externalID := chi.URLParam(r, "externalId")
+	userID := chi.URLParam(r, "userId")
 
-	result, err := h.service.GetUser(r.Context(), externalID)
+	result, err := h.service.GetUser(r.Context(), userID)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return ErrorResponse{
@@ -133,9 +133,9 @@ func (h *HTTP) GetUser(w http.ResponseWriter, r *http.Request) (interface{}, err
 }
 
 func (h *HTTP) UpdateUser(w http.ResponseWriter, r *http.Request) (interface{}, error) {
-	externalID := chi.URLParam(r, "externalId")
+	ID := chi.URLParam(r, "id")
 
-	_, err := h.service.UpdateUser(r.Context(), externalID, r.Body)
+	_, err := h.service.UpdateUser(r.Context(), ID, r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return ErrorResponse{
@@ -357,14 +357,14 @@ func (h *HTTP) GetUsersWhoSentMessagesInTheLastDays(w http.ResponseWriter, r *ht
 }
 
 func (h *HTTP) GetUserContacts(w http.ResponseWriter, r *http.Request) (interface{}, error) {
-	externalID := chi.URLParam(r, "externalId")
+	ID := chi.URLParam(r, "id")
 	pageStr := r.URL.Query().Get("page")
 	limitStr := r.URL.Query().Get("limit")
 
 	result, err := h.service.GetUserContacts(r.Context(), GetUserContactsQuery{
-		ExternalID: externalID,
-		PageStr:    pageStr,
-		LimitStr:   limitStr,
+		ID:       ID,
+		PageStr:  pageStr,
+		LimitStr: limitStr,
 	})
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)

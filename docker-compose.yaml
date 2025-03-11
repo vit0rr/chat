@@ -5,7 +5,7 @@ version: '3.8'
 
 services:
   chat-mongo:
-    container_name: chat-service-mongo-database
+    container_name: chat-mongo-database
     platform: linux/amd64
     image: mongo:4.4
     env_file:
@@ -19,7 +19,7 @@ services:
       - ./data/mongo:/data
 
   chat-redis:
-    container_name: chat-service-redis
+    container_name: chat-redis
     image: redis:7.0-alpine
     ports:
       - '6379:6379'

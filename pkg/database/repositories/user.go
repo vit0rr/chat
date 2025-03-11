@@ -14,30 +14,29 @@ import (
 )
 
 type User struct {
-	ExternalID string    `bson:"externalId"`
-	Nickname   string    `bson:"nickname"`
-	Status     string    `bson:"status"`
-	Activity   string    `bson:"activity"`
-	CreatedAt  time.Time `bson:"createdAt"`
-	UpdatedAt  time.Time `bson:"updatedAt"`
+	Nickname  string    `bson:"nickname"`
+	Status    string    `bson:"status"`
+	Activity  string    `bson:"activity"`
+	CreatedAt time.Time `bson:"createdAt"`
+	UpdatedAt time.Time `bson:"updatedAt"`
 }
 
 type CreateUserData struct {
-	ExternalID string `json:"externalId"`
-	Nickname   string `json:"nickname"`
-	Status     string `json:"status"`
-	Activity   string `json:"activity"`
+	// ID       string `json:"id"`
+	Nickname string `json:"nickname"`
+	Status   string `json:"status"`
+	Activity string `json:"activity"`
 }
 
 type GetUserData struct {
-	ExternalID string
+	UserID string
 }
 
 type UpdateUserData struct {
-	ExternalID string
-	Nickname   *string
-	Status     *string
-	Activity   *string
+	UserID   string
+	Nickname *string
+	Status   *string
+	Activity *string
 }
 
 type GetAllOnlineUsersData struct {
@@ -61,12 +60,11 @@ func CreateUser(ctx context.Context, db *mongo.Database, data CreateUserData) (*
 	collection := db.Collection(constants.UsersCollection)
 
 	user, err := collection.InsertOne(ctx, User{
-		ExternalID: data.ExternalID,
-		Nickname:   data.Nickname,
-		Status:     data.Status,
-		Activity:   data.Activity,
-		CreatedAt:  now,
-		UpdatedAt:  now,
+		Nickname:  data.Nickname,
+		Status:    data.Status,
+		Activity:  data.Activity,
+		CreatedAt: now,
+		UpdatedAt: now,
 	})
 
 	if err != nil {
@@ -74,13 +72,15 @@ func CreateUser(ctx context.Context, db *mongo.Database, data CreateUserData) (*
 		return nil, errors.New(constants.ErrorMessages[constants.FailedToCreateUser].Message)
 	}
 
+	fmt.Println("useawdawd", user)
+
 	return user, nil
 }
 
 func GetUser(ctx context.Context, db *mongo.Database, data GetUserData) (*User, error) {
 	collection := db.Collection(constants.UsersCollection)
 	options := options.FindOne()
-	filter := bson.M{"externalId": data.ExternalID}
+	filter := bson.M{"id": data.UserID}
 
 	user := User{}
 	err := collection.FindOne(ctx, filter, options).Decode(&user)
@@ -106,10 +106,10 @@ func GetAllOnlineUsersFromARoom(ctx context.Context, db *mongo.Database, data Ge
 
 	usersIds := []string{}
 	for _, userObj := range room.Users {
-		usersIds = append(usersIds, userObj.ExternalID)
+		usersIds = append(usersIds, userObj.ID)
 	}
 
-	cursor, err := collection.Find(ctx, bson.M{"externalId": bson.M{"$in": usersIds}, "activity": "online"})
+	cursor, err := collection.Find(ctx, bson.M{"id": bson.M{"$in": usersIds}, "activity": "online"})
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, errors.New(constants.ErrorMessages[constants.UserNotFound].Message)
@@ -159,7 +159,7 @@ func GetUsers(ctx context.Context, db *mongo.Database, data GetUserData) (*mongo
 }
 
 func UpdateUser(ctx context.Context, db *mongo.Database, data UpdateUserData) (*mongo.UpdateResult, error) {
-	user, err := GetUser(ctx, db, GetUserData{ExternalID: data.ExternalID})
+	user, err := GetUser(ctx, db, GetUserData{UserID: data.UserID})
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +168,7 @@ func UpdateUser(ctx context.Context, db *mongo.Database, data UpdateUserData) (*
 	}
 
 	collection := db.Collection(constants.UsersCollection)
-	filter := bson.M{"externalId": data.ExternalID}
+	filter := bson.M{"id": data.UserID}
 
 	update := bson.M{"$set": bson.M{"updatedAt": time.Now()}}
 	if data.Nickname != nil {
@@ -197,7 +197,7 @@ func GetUserContacts(ctx context.Context, db *mongo.Database, data GetUserContac
 	pipeline := []bson.M{
 		{
 			"$match": bson.M{
-				"users.externalId": data.UserID,
+				"users.id": data.UserID,
 			},
 		},
 		{
@@ -205,14 +205,14 @@ func GetUserContacts(ctx context.Context, db *mongo.Database, data GetUserContac
 		},
 		{
 			"$match": bson.M{
-				"users.externalId": bson.M{
+				"users.id": bson.M{
 					"$ne": data.UserID,
 				},
 			},
 		},
 		{
 			"$group": bson.M{
-				"_id":      "$users.externalId",
+				"_id":      "$users.id",
 				"nickname": bson.M{"$first": "$users.nickname"},
 			},
 		},
@@ -220,7 +220,7 @@ func GetUserContacts(ctx context.Context, db *mongo.Database, data GetUserContac
 			"$lookup": bson.M{
 				"from":         constants.UsersCollection,
 				"localField":   "_id",
-				"foreignField": "externalId",
+				"foreignField": "id",
 				"as":           "userDetails",
 			},
 		},
@@ -229,11 +229,10 @@ func GetUserContacts(ctx context.Context, db *mongo.Database, data GetUserContac
 		},
 		{
 			"$project": bson.M{
-				"_id":        0,
-				"externalId": "$userDetails.externalId",
-				"nickname":   "$userDetails.nickname",
-				"status":     "$userDetails.status",
-				"activity":   "$userDetails.activity",
+				"_id":      0,
+				"nickname": "$userDetails.nickname",
+				"status":   "$userDetails.status",
+				"activity": "$userDetails.activity",
 			},
 		},
 		{"$skip": data.Skip},
