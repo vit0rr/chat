@@ -232,64 +232,6 @@ func (h *HTTP) GetRooms(w http.ResponseWriter, r *http.Request) (interface{}, er
 	return result, nil
 }
 
-func (h *HTTP) RegisterClient(w http.ResponseWriter, r *http.Request) (interface{}, error) {
-	result, err := h.service.RegisterClient(r.Context(), r.Body)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return ErrorResponse{
-			Error: err.Error(),
-			Code:  http.StatusBadRequest,
-		}, nil
-	}
-	return result, nil
-}
-
-func (h *HTTP) GetClient(w http.ResponseWriter, r *http.Request) (interface{}, error) {
-	slug := chi.URLParam(r, "slug")
-
-	client, err := h.service.GetClient(r.Context(), slug)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return ErrorResponse{
-			Error: err.Error(),
-			Code:  http.StatusBadRequest,
-		}, nil
-	}
-	return client, nil
-}
-
-func (h *HTTP) UpdateClient(w http.ResponseWriter, r *http.Request) (interface{}, error) {
-	slug := chi.URLParam(r, "slug")
-
-	_, err := h.service.UpdateClient(r.Context(), slug, r.Body)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return ErrorResponse{
-			Error: err.Error(),
-			Code:  http.StatusBadRequest,
-		}, nil
-	}
-	return map[string]interface{}{
-		"message": "Client updated successfully",
-	}, nil
-}
-
-func (h *HTTP) DeleteClient(w http.ResponseWriter, r *http.Request) (interface{}, error) {
-	slug := chi.URLParam(r, "slug")
-
-	_, err := h.service.DeleteClient(r.Context(), slug)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return ErrorResponse{
-			Error: err.Error(),
-			Code:  http.StatusBadRequest,
-		}, nil
-	}
-	return map[string]interface{}{
-		"message": "Client deleted successfully",
-	}, nil
-}
-
 func (h *HTTP) GetTotalMessagesSent(w http.ResponseWriter, r *http.Request) (interface{}, error) {
 	total, err := h.service.GetTotalMessagesSent(r.Context())
 	if err != nil {

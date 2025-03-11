@@ -54,12 +54,6 @@ func (router *Router) BuildRoutes(deps *deps.Deps) *chi.Mux {
 			r.Get("/{userId}/contacts", telemetry.HandleFuncLogger(router.chatService.GetUserContacts))
 			r.Patch("/{userId}", telemetry.HandleFuncLogger(router.chatService.UpdateUser))
 		})
-		r.Route("/clients", func(r chi.Router) {
-			r.Get("/{slug}", telemetry.HandleFuncLogger(router.chatService.GetClient))
-			r.Post("/", telemetry.HandleFuncLogger(router.chatService.RegisterClient))
-			r.Patch("/{slug}", telemetry.HandleFuncLogger(router.chatService.UpdateClient))
-			r.Delete("/{slug}", telemetry.HandleFuncLogger(router.chatService.DeleteClient))
-		})
 
 		r.Route("/messages", func(r chi.Router) {
 			r.Route("/total-sent", func(r chi.Router) {

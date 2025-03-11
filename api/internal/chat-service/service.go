@@ -1113,66 +1113,6 @@ func (s *Service) GetOnlineUsersFromAllRooms(ctx context.Context, query GetOnlin
 	return users, nil
 }
 
-func (s *Service) RegisterClient(ctx context.Context, body io.ReadCloser) (interface{}, error) {
-	defer body.Close()
-
-	var client repositories.CreateClientData
-	err := json.NewDecoder(body).Decode(&client)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode client: %v", err)
-	}
-
-	_, err = repositories.CreateClient(ctx, s.Mongo, client)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create client: %v", err)
-	}
-
-	return map[string]string{"status": "client registered"}, nil
-}
-
-func (s *Service) GetClient(ctx context.Context, slug string) (repositories.Client, error) {
-	client, err := repositories.GetClient(ctx, s.Mongo, repositories.GetClientData{
-		Slug: slug,
-	})
-
-	if err != nil {
-		return repositories.Client{}, fmt.Errorf("failed to get client: %v", err)
-	}
-
-	return *client, nil
-}
-
-func (s *Service) UpdateClient(ctx context.Context, slug string, body io.ReadCloser) (interface{}, error) {
-	defer body.Close()
-
-	var client repositories.UpdateClientData
-	err := json.NewDecoder(body).Decode(&client)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode client: %v", err)
-	}
-
-	client.Slug = &slug
-
-	result, err := repositories.UpdateClient(ctx, s.Mongo, client)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update client: %v", err)
-	}
-
-	return result, nil
-}
-
-func (s *Service) DeleteClient(ctx context.Context, slug string) (interface{}, error) {
-
-	result, err := repositories.DeleteClient(ctx, s.Mongo, repositories.DeleteClientData{
-		Slug: slug,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to update client: %v", err)
-	}
-
-	return result, nil
-}
-
 func (s *Service) GetTotalMessagesSent(ctx context.Context) (int64, error) {
 	total, err := repositories.TotalMessagesSent(ctx, s.Mongo)
 	if err != nil {
