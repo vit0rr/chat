@@ -47,8 +47,12 @@ export default function RegisterPage() {
       const { token, user_id, nickname } = response;
       authLogin(token, user_id, nickname);
       router.push("/rooms");
-    } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to register");
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An unknown error occurred");
+      }
     } finally {
       setLoading(false);
     }

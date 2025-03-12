@@ -45,11 +45,12 @@ export default function LoginPage() {
       setEmail("");
       setPassword("");
       router.push("/rooms");
-    } catch (err: any) {
-      console.error("Login error:", err);
-      setError(
-        err.response?.data?.message || "Failed to login. Please try again."
-      );
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An unexpected error occurred");
+      }
     } finally {
       setLoading(false);
     }
@@ -110,7 +111,7 @@ export default function LoginPage() {
         </CardContent>
         <CardFooter className="flex justify-center">
           <p className="text-sm text-muted-foreground">
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <Link
               href="/register"
               className="font-medium text-primary hover:text-primary/90 bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-600"

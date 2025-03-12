@@ -1,0 +1,27 @@
+# fly.toml app configuration file generated for short-spot on 2024-10-18T07:25:47-03:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'chat'
+primary_region = 'gig'
+
+[build]
+  [build.args]
+    GO_VERSION = '1.23'
+
+[env]
+  BASE_URL="https://short-spot.fly.dev/"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1

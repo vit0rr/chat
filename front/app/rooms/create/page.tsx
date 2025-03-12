@@ -65,13 +65,13 @@ export default function CreateRoomPage() {
       } else {
         throw new Error("Invalid response from server");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error creating room:", err);
-      setError(
-        err.response?.data?.message ||
-          err.message ||
-          "Failed to create room. Please try again."
-      );
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Failed to create room. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
