@@ -53,10 +53,11 @@ export default function CreateRoomPage() {
       // Register user in the new room
       const response = await registerUserInRoom(
         newRoomId,
-        user.id,
-        nickname,
+        [{ id: user.id, nickname }],
         token
       );
+
+      console.log("aa", { response });
 
       // Validate response and navigate
       if (response && response.room_id) {

@@ -42,25 +42,27 @@ export const getRooms = async (token: string): Promise<Room[]> => {
 };
 
 export const registerUserInRoom = async (
-    roomId: string,
-    userId: string,
-    nickname: string,
+    id: string,
+    users: {
+        id: string;
+        nickname: string;
+    }[],
     token: string
 ): Promise<RegisterUserResponse> => {
     if (!token) {
         throw new Error('Authentication token is required');
     }
 
-    if (!userId) {
-        throw new Error('User ID is required');
+    if (!id) {
+        throw new Error('Room ID is required');
     }
 
     try {
-        const response = await axios.post<RegisterUserResponse>(
-            `${API_URL}/rooms/${roomId}/register-user`,
+        const response = await axios.post<RoomDetails>(
+            `${API_URL}/rooms/${id}/register-user`,
             {
-                user_id: userId,
-                nickname: nickname,
+                user_id: users[0].id,
+                nickname: users[0].nickname,
             },
             {
                 headers: {
@@ -70,16 +72,29 @@ export const registerUserInRoom = async (
             }
         );
 
-        // Validate the response
-        if (!response.data.room_id) {
-            throw new Error('Invalid response: room_id is missing');
-        }
+        console.log({ response });
 
-        return response.data;
+        return {
+            user_id: users[0].id,
+            room_id: response.data.id,
+            nickname: users[0].nickname
+        };
     } catch (error: unknown) {
         console.error('Register user in room error:', error instanceof Error ? error.message : String(error));
         throw error;
     }
+};
+
+// Add this type to match backend response
+type RoomDetails = {
+    id: string;
+    users: Array<{
+        id: string;
+        nickname: string;
+    }>;
+    locked_by?: string;
+    created_at: string;
+    updated_at: string;
 };
 
 export const getRoom = async (roomId: string, token: string): Promise<Room> => {
