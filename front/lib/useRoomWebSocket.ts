@@ -12,7 +12,7 @@ export function useRoomWebSocket(roomId: string, userId: string, token: string) 
             return;
         }
 
-        const wsUrl = `ws://localhost:8080/api/v1/rooms/${roomId}/watch?user_id=${userId}`;
+        const wsUrl = `ws://chat-solitary-butterfly-9161.fly.dev/api/v1/rooms/${roomId}/watch?user_id=${userId}`;
         console.log('Connecting to Room WebSocket:', wsUrl);
 
         const ws = new WebSocket(wsUrl);

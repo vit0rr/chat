@@ -7,6 +7,7 @@ import (
 type API struct {
 	Mongo Mongo `hcl:"mongo,block"`
 	Redis Redis `hcl:"redis,block"`
+	BaseURL BaseURL `hcl:"base_url,block"`
 }
 
 type Mongo struct {
@@ -17,6 +18,10 @@ type Redis struct {
 	Dsn string `hcl:"dsn,attr"`
 }
 
+type BaseURL struct {
+	Url string `hcl:"url,attr"`
+}
+
 func GetDefaltAPIConfig(cfg Config) API {
 	return API{
 		Mongo: Mongo{
@@ -24,6 +29,9 @@ func GetDefaltAPIConfig(cfg Config) API {
 		},
 		Redis: Redis{
 			Dsn: os.Getenv("REDIS_URL"),
+		},
+		BaseURL: BaseURL{
+			Url: os.Getenv("BASE_URL"),
 		},
 	}
 }

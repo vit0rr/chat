@@ -13,16 +13,8 @@ import (
 )
 
 func NewRedisClient(ctx context.Context, cfg config.Config) (*redis.Client, error) {
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:         cfg.API.Redis.Dsn,
-		DB:           0,
-		PoolSize:     10,
-		MinIdleConns: 5,
-		DialTimeout:  5 * time.Second,
-		ReadTimeout:  3 * time.Second,
-		WriteTimeout: 3 * time.Second,
-		PoolTimeout:  4 * time.Second,
-	})
+	opt, _ := redis.ParseURL(cfg.API.Redis.Dsn)
+	redisClient := redis.NewClient(opt)
 
 	if err := redisClient.Ping(ctx).Err(); err != nil {
 		return nil, err

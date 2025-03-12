@@ -18,7 +18,8 @@ import axios from "axios";
 import Link from "next/link";
 
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://chat-solitary-butterfly-9161.fly.dev/api/v1";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
