@@ -12,7 +12,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
 import { ChevronLeft, Loader2, LockIcon } from "lucide-react";
 
 export default function RoomDetailPage({
@@ -115,7 +114,11 @@ export default function RoomDetailPage({
           <Alert variant="destructive">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
-          <Button variant="link" asChild className="mt-4">
+          <Button
+            variant="link"
+            asChild
+            className="mt-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-600"
+          >
             <Link href="/rooms">Back to Rooms</Link>
           </Button>
         </main>
@@ -133,7 +136,10 @@ export default function RoomDetailPage({
               The room you're looking for doesn't exist or you don't have
               access.
             </p>
-            <Button asChild>
+            <Button
+              asChild
+              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all"
+            >
               <Link href="/rooms">Back to Rooms</Link>
             </Button>
           </CardContent>

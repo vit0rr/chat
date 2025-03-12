@@ -48,10 +48,13 @@ export default function RoomsPage() {
 
       <main className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-blue-600">
             Available Rooms
           </h1>
-          <Button onClick={() => router.push("/rooms/create")}>
+          <Button
+            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all"
+            onClick={() => router.push("/rooms/create")}
+          >
             Create Room
           </Button>
         </div>
