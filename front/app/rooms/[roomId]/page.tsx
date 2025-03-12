@@ -66,13 +66,6 @@ export default function RoomDetailPage({
     (roomUser) => roomUser.id === user?.id
   );
 
-  console.log({
-    roomUser: room?.users,
-    user: user,
-  });
-
-  console.log("isUserInRoom", isUserInRoom);
-
   const handleJoinRoom = async () => {
     if (!user || !token) {
       router.push("/login");

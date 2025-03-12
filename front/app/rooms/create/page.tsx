@@ -53,14 +53,12 @@ export default function CreateRoomPage() {
       // Register user in the new room
       const response = await registerUserInRoom(
         newRoomId,
-        user.id,
-        nickname,
+        [{ id: user.id, nickname }],
         token
       );
 
       // Validate response and navigate
       if (response && response.room_id) {
-        console.log("Room created successfully:", response);
         router.push(`/rooms/${response.room_id}`);
       } else {
         throw new Error("Invalid response from server");
