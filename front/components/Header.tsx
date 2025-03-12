@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LogOut, User } from "lucide-react";
+import { LogOut } from "lucide-react";
 
 export default function Header() {
   const { user, logout } = useAuth();
@@ -21,7 +21,7 @@ export default function Header() {
         <div className="flex items-center justify-between">
           <Link
             href="/rooms"
-            className="text-xl font-bold text-primary hover:text-primary/90"
+            className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-600"
           >
             Chat App
           </Link>
