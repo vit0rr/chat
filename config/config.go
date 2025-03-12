@@ -12,6 +12,9 @@ type Config struct {
 	Server Server `hcl:"server,block"`
 	API    API    `hcl:"api,block"`
 	Env    Env    `hcl:"env,block"`
+	JWT    struct {
+		Secret string `env:"JWT_SECRET" envDefault:"secret-key"`
+	}
 }
 
 type Env struct {

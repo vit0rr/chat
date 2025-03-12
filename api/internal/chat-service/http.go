@@ -319,6 +319,18 @@ func (h *HTTP) GetUserContacts(w http.ResponseWriter, r *http.Request) (interfac
 	return result, nil
 }
 
+func (h *HTTP) CreateUser(w http.ResponseWriter, r *http.Request) (interface{}, error) {
+	result, err := h.service.CreateUser(r.Context(), r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return ErrorResponse{
+			Error: err.Error(),
+			Code:  http.StatusBadRequest,
+		}, nil
+	}
+	return result, nil
+}
+
 func JSONResponseMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

@@ -20,11 +20,6 @@ type Room struct {
 	UpdatedAt time.Time `bson:"updatedAt" json:"updatedAt"`
 }
 
-type UserRef struct {
-	ID       string `bson:"id"`
-	Nickname string `bson:"nickname"`
-}
-
 type CreateRoomData struct {
 	UserID   string `json:"userId"`
 	RoomID   string `json:"roomId"`

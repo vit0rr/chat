@@ -9,23 +9,27 @@ import (
 	"github.com/vit0rr/chat/api/constants"
 	"github.com/vit0rr/chat/pkg/log"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type User struct {
-	Nickname  string    `bson:"nickname"`
-	Status    string    `bson:"status"`
-	Activity  string    `bson:"activity"`
-	CreatedAt time.Time `bson:"createdAt"`
-	UpdatedAt time.Time `bson:"updatedAt"`
+	Id        string    `json:"id" bson:"_id"`
+	Email     string    `json:"email" bson:"email"`
+	Password  string    `json:"password" bson:"password"`
+	Nickname  string    `json:"nickname" bson:"nickname"`
+	Activity  string    `json:"activity" bson:"activity"`
+	CreatedAt time.Time `json:"created_at" bson:"created_at"`
+	UpdatedAt time.Time `json:"updated_at" bson:"updated_at"`
 }
 
 type CreateUserData struct {
-	// ID       string `json:"id"`
+	ID       string `json:"_id"`
 	Nickname string `json:"nickname"`
-	Status   string `json:"status"`
 	Activity string `json:"activity"`
+	Password string `json:"password"`
+	Email    string `json:"email"`
 }
 
 type GetUserData struct {
@@ -35,7 +39,6 @@ type GetUserData struct {
 type UpdateUserData struct {
 	UserID   string
 	Nickname *string
-	Status   *string
 	Activity *string
 }
 
@@ -57,12 +60,16 @@ type GetUserContactsData struct {
 func CreateUser(ctx context.Context, db *mongo.Database, data CreateUserData) (*mongo.InsertOneResult, error) {
 	now := time.Now()
 
+	id := primitive.NewObjectID().Hex()
+
 	collection := db.Collection(constants.UsersCollection)
 
 	user, err := collection.InsertOne(ctx, User{
+		Id:        id,
 		Nickname:  data.Nickname,
-		Status:    data.Status,
 		Activity:  data.Activity,
+		Password:  data.Password,
+		Email:     data.Email,
 		CreatedAt: now,
 		UpdatedAt: now,
 	})
@@ -72,7 +79,7 @@ func CreateUser(ctx context.Context, db *mongo.Database, data CreateUserData) (*
 		return nil, errors.New(constants.ErrorMessages[constants.FailedToCreateUser].Message)
 	}
 
-	fmt.Println("useawdawd", user)
+	user.InsertedID = id
 
 	return user, nil
 }
@@ -80,7 +87,7 @@ func CreateUser(ctx context.Context, db *mongo.Database, data CreateUserData) (*
 func GetUser(ctx context.Context, db *mongo.Database, data GetUserData) (*User, error) {
 	collection := db.Collection(constants.UsersCollection)
 	options := options.FindOne()
-	filter := bson.M{"id": data.UserID}
+	filter := bson.M{"_id": data.UserID}
 
 	user := User{}
 	err := collection.FindOne(ctx, filter, options).Decode(&user)
@@ -109,7 +116,7 @@ func GetAllOnlineUsersFromARoom(ctx context.Context, db *mongo.Database, data Ge
 		usersIds = append(usersIds, userObj.ID)
 	}
 
-	cursor, err := collection.Find(ctx, bson.M{"id": bson.M{"$in": usersIds}, "activity": "online"})
+	cursor, err := collection.Find(ctx, bson.M{"_id": bson.M{"$in": usersIds}, "activity": "online"})
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, errors.New(constants.ErrorMessages[constants.UserNotFound].Message)
@@ -168,14 +175,11 @@ func UpdateUser(ctx context.Context, db *mongo.Database, data UpdateUserData) (*
 	}
 
 	collection := db.Collection(constants.UsersCollection)
-	filter := bson.M{"id": data.UserID}
+	filter := bson.M{"_id": data.UserID}
 
 	update := bson.M{"$set": bson.M{"updatedAt": time.Now()}}
 	if data.Nickname != nil {
 		update["$set"].(bson.M)["nickname"] = *data.Nickname
-	}
-	if data.Status != nil {
-		update["$set"].(bson.M)["status"] = *data.Status
 	}
 
 	if data.Activity != nil {
@@ -246,4 +250,38 @@ func GetUserContacts(ctx context.Context, db *mongo.Database, data GetUserContac
 	}
 
 	return cursor, nil
+}
+
+func GetUserByEmail(ctx context.Context, db *mongo.Database, email string) (*User, error) {
+	collection := db.Collection(constants.UsersCollection)
+	filter := bson.M{"email": email}
+
+	var user User
+	err := collection.FindOne(ctx, filter).Decode(&user)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, mongo.ErrNoDocuments
+		}
+		log.Error(ctx, "Failed to get user by email", log.ErrAttr(err))
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func DeleteUser(ctx context.Context, db *mongo.Database, userID string) error {
+	collection := db.Collection(constants.UsersCollection)
+	filter := bson.M{"_id": userID}
+
+	result, err := collection.DeleteOne(ctx, filter)
+	if err != nil {
+		log.Error(ctx, "Failed to delete user", log.ErrAttr(err))
+		return err
+	}
+
+	if result.DeletedCount == 0 {
+		return errors.New("user not found")
+	}
+
+	return nil
 }

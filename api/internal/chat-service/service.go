@@ -46,8 +46,8 @@ const (
 type ChatMessage struct {
 	Type      MessageType `json:"type"`      // Type of message (text/system)
 	Content   string      `json:"content"`   // Actual message content
-	RoomID    string      `json:"room_id"`   // Room the message belongs to
-	SenderID  string      `json:"sender_id"` // ID of message sender
+	RoomId    string      `json:"room_id"`   // Room the message belongs to
+	SenderId  string      `json:"sender_id"` // ID of message sender
 	Nickname  string      `json:"nickname"`  // Sender's display name
 	Timestamp time.Time   `json:"timestamp"` // When message was sent
 }
@@ -136,7 +136,7 @@ type RoomsList struct {
 
 // Create the types to the GetRoom now
 type RoomDetails struct {
-	RoomID    string                 `json:"room_id"`
+	RoomId    string                 `json:"room_id"`
 	Users     []repositories.UserRef `json:"users"`
 	LockedBy  *string                `json:"locked_by,omitempty"`
 	CreatedAt time.Time              `json:"created_at"`
@@ -152,7 +152,7 @@ type RoomListDetails struct {
 }
 
 type RoomListUser struct {
-	ID       string `json:"id"`
+	Id       string `json:"id"`
 	Nickname string `json:"nickname"`
 }
 
@@ -280,16 +280,6 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 		s.redis.SRem(ctx, roomKey, userID)
 		s.redis.SRem(ctx, onlineKey, userID)
 
-		// Broadcast user offline status
-		s.broadcastToRoom(ctx, roomID, ChatMessage{
-			Type:      SystemMessage,
-			Content:   fmt.Sprintf("%s is now offline", nickname),
-			RoomID:    roomID,
-			SenderID:  userID,
-			Nickname:  nickname,
-			Timestamp: time.Now(),
-		})
-
 		repositories.UpdateUser(ctx, s.Mongo, repositories.UpdateUserData{
 			UserID:   userID,
 			Activity: &[]string{"offline"}[0],
@@ -344,7 +334,7 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 			wsjson.Write(ctx, conn, ChatMessage{
 				Type:      SystemMessage,
 				Content:   fmt.Sprintf("Message exceeds maximum length of %d characters", MaxMessageLen),
-				RoomID:    roomID,
+				RoomId:    roomID,
 				Timestamp: time.Now(),
 			})
 			client.mu.Unlock()
@@ -375,7 +365,7 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 			s.broadcastToRoom(ctx, roomID, ChatMessage{
 				Type:      SystemMessage,
 				Content:   fmt.Sprintf("Room has been unlocked by %s", nickname),
-				RoomID:    roomID,
+				RoomId:    roomID,
 				Timestamp: time.Now(),
 			})
 		}
@@ -386,7 +376,7 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 			wsjson.Write(ctx, conn, ChatMessage{
 				Type:      SystemMessage,
 				Content:   "Room is locked. Messages cannot be sent.",
-				RoomID:    roomID,
+				RoomId:    roomID,
 				Timestamp: time.Now(),
 			})
 			client.mu.Unlock()
@@ -394,9 +384,9 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 		}
 
 		message.Timestamp = time.Now()
-		message.SenderID = userID
+		message.SenderId = userID
 		message.Nickname = nickname
-		message.RoomID = roomID
+		message.RoomId = roomID
 
 		// Broadcast message using Redis
 		s.broadcastToRoom(ctx, roomID, message)
@@ -709,7 +699,7 @@ func (s *Service) LockRoom(c context.Context, b io.ReadCloser, roomID string) (i
 		s.broadcastToRoom(c, roomID, ChatMessage{
 			Type:      SystemMessage,
 			Content:   fmt.Sprintf("Room has been unlocked by %s", userNickname),
-			RoomID:    roomID,
+			RoomId:    roomID,
 			Timestamp: time.Now(),
 		})
 
@@ -719,7 +709,7 @@ func (s *Service) LockRoom(c context.Context, b io.ReadCloser, roomID string) (i
 	s.broadcastToRoom(c, roomID, ChatMessage{
 		Type:      SystemMessage,
 		Content:   fmt.Sprintf("Room has been locked by %s", userNickname),
-		RoomID:    roomID,
+		RoomId:    roomID,
 		Timestamp: time.Now(),
 	})
 
@@ -811,9 +801,9 @@ func (s *Service) GetMessages(ctx context.Context, query GetMessagesQuery) ([]Ch
 		messages = append(messages, ChatMessage{
 			Type:      TextMessage,
 			Content:   msg.Message,
-			RoomID:    msg.RoomID,
+			RoomId:    msg.RoomID,
 			Nickname:  msg.Nickname,
-			SenderID:  msg.FromUserID,
+			SenderId:  msg.FromUserID,
 			Timestamp: msg.CreatedAt,
 		})
 	}
@@ -827,9 +817,9 @@ func (s *Service) GetMessages(ctx context.Context, query GetMessagesQuery) ([]Ch
 func (s *Service) broadcastToRoom(ctx context.Context, roomID string, message ChatMessage) {
 	// Save message to MongoDB
 	_, err := repositories.CreateMessage(ctx, s.Mongo, repositories.CreateMessageData{
-		RoomID:     message.RoomID,
+		RoomID:     message.RoomId,
 		Message:    message.Content,
-		FromUserID: message.SenderID,
+		FromUserID: message.SenderId,
 		Nickname:   message.Nickname,
 	})
 
@@ -961,7 +951,7 @@ func (s *Service) GetRoom(ctx context.Context, roomID string) (RoomDetails, Erro
 	}
 
 	return RoomDetails{
-		RoomID:    room.ID,
+		RoomId:    room.ID,
 		Users:     room.Users,
 		LockedBy:  &room.LockedBy,
 		CreatedAt: room.CreatedAt,
@@ -1027,7 +1017,7 @@ func (s *Service) GetRooms(ctx context.Context, query GetRoomsQuery) (RoomsList,
 		responseUsers := []RoomListUser{}
 		for _, user := range room.Users {
 			responseUsers = append(responseUsers, RoomListUser{
-				ID:       user.ID,
+				Id:       user.ID,
 				Nickname: user.Nickname,
 			})
 		}
