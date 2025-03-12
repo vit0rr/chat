@@ -72,8 +72,6 @@ export const registerUserInRoom = async (
             }
         );
 
-        console.log({ response });
-
         return {
             user_id: users[0].id,
             room_id: response.data.id,
