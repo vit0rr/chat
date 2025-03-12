@@ -1,17 +1,18 @@
-# fly.toml app configuration file generated for short-spot on 2024-10-18T07:25:47-03:00
+# fly.toml app configuration file generated for chat-solitary-butterfly-9161 on 2025-03-12T01:18:39-03:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'chat'
+app = 'chat-solitary-butterfly-9161'
 primary_region = 'gig'
 
 [build]
   [build.args]
-    GO_VERSION = '1.23'
+    GO_VERSION = '1.24.1'
 
 [env]
-  BASE_URL="https://short-spot.fly.dev/"
+  BASE_URL = 'https://chat-vit0rrs-projects.vercel.app/'
+  PORT = '8080'
 
 [http_service]
   internal_port = 8080
