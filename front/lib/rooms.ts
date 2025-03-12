@@ -76,8 +76,8 @@ export const registerUserInRoom = async (
         }
 
         return response.data;
-    } catch (error: any) {
-        console.error('Register user in room error:', error.response?.data || error);
+    } catch (error: unknown) {
+        console.error('Register user in room error:', error instanceof Error ? error.message : String(error));
         throw error;
     }
 };
@@ -116,8 +116,8 @@ export const getMessages = async (
         );
 
         return response.data;
-    } catch (error: any) {
-        console.error('Error fetching messages:', error.response?.data || error);
+    } catch (error: unknown) {
+        console.error('Error fetching messages:', error instanceof Error ? error.message : String(error));
         throw error;
     }
 };

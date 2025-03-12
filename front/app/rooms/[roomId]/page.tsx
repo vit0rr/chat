@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ChevronLeft, Loader2, LockIcon } from "lucide-react";
+import { AxiosError } from "axios";
 
 export default function RoomDetailPage({
   params,
@@ -43,10 +44,14 @@ export default function RoomDetailPage({
         setError("");
         const roomData = await getRoom(roomId, token);
         setRoom(roomData);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Error fetching room:", err);
-        setError(err.response?.data?.message || "Failed to load room");
-        if (err.response?.status === 404) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError("Failed to load room");
+        }
+        if (err instanceof AxiosError && err.response?.status === 404) {
           router.push("/rooms");
         }
       } finally {
@@ -133,8 +138,8 @@ export default function RoomDetailPage({
           <CardContent className="flex flex-col items-center justify-center space-y-4 pt-8 pb-8">
             <CardTitle>Room not found</CardTitle>
             <p className="text-muted-foreground">
-              The room you're looking for doesn't exist or you don't have
-              access.
+              The room you&apos;re looking for doesn&apos;t exist or you
+              don&apos;t have access.
             </p>
             <Button
               asChild

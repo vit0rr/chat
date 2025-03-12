@@ -39,7 +39,7 @@ export default function Chat({ roomId, userId, nickname, token }: ChatProps) {
     if (!isLoadingHistory) {
       scrollToBottom();
     }
-  }, [messages]);
+  }, [messages, isLoadingHistory]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

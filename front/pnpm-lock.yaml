@@ -54,6 +54,9 @@ importers:
       '@eslint/eslintrc':
         specifier: ^3
         version: 3.3.0
+      '@next/eslint-plugin-next':
+        specifier: ^15.2.2
+        version: 15.2.2
       '@tailwindcss/postcss':
         specifier: ^4
         version: 4.0.12
@@ -66,12 +69,24 @@ importers:
       '@types/react-dom':
         specifier: ^19
         version: 19.0.4(@types/react@19.0.10)
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^8.26.1
+        version: 8.26.1(@typescript-eslint/parser@8.26.1(eslint@9.22.0(jiti@2.4.2))(typescript@5.8.2))(eslint@9.22.0(jiti@2.4.2))(typescript@5.8.2)
+      '@typescript-eslint/parser':
+        specifier: ^8.26.1
+        version: 8.26.1(eslint@9.22.0(jiti@2.4.2))(typescript@5.8.2)
       eslint:
-        specifier: ^9
+        specifier: ^9.22.0
         version: 9.22.0(jiti@2.4.2)
       eslint-config-next:
         specifier: 15.2.2-canary.7
         version: 15.2.2-canary.7(eslint@9.22.0(jiti@2.4.2))(typescript@5.8.2)
+      eslint-config-prettier:
+        specifier: ^10.1.1
+        version: 10.1.1(eslint@9.22.0(jiti@2.4.2))
+      eslint-plugin-react-hooks:
+        specifier: ^5.2.0
+        version: 5.2.0(eslint@9.22.0(jiti@2.4.2))
       tailwindcss:
         specifier: ^4
         version: 4.0.12
@@ -268,6 +283,9 @@ packages:
 
   '@next/env@15.2.2-canary.7':
     resolution: {integrity: sha512-j1y9ucHqzNNbEN6Jqd7AWimUYzk/oG00SbDb9IaGX/61J6aOKTF5cSZ8AAgkm2IqhvELaXfOhk/hHwG8N0I2uQ==}
+
+  '@next/eslint-plugin-next@15.2.2':
+    resolution: {integrity: sha512-1+BzokFuFQIfLaRxUKf2u5In4xhPV7tUgKcK53ywvFl6+LXHWHpFkcV7VNeKlyQKUotwiq4fy/aDNF9EiUp4RQ==}
 
   '@next/eslint-plugin-next@15.2.2-canary.7':
     resolution: {integrity: sha512-wuxlmTw3PiRwHOdlb+43vH9ggcS9HLLzC3nROkFp3AWjj/ZQg71T0zybB64Vu8OicYoLTwaZOJP/EFDYLpHTMA==}
@@ -1063,6 +1081,12 @@ packages:
     peerDependenciesMeta:
       typescript:
         optional: true
+
+  eslint-config-prettier@10.1.1:
+    resolution: {integrity: sha512-4EQQr6wXwS+ZJSzaR5ZCrYgLxqvUjdXctaEtBqHcbkW944B1NQyO4qpdHQbXBONfwxXdkAY81HH4+LUfrg+zPw==}
+    hasBin: true
+    peerDependencies:
+      eslint: '>=7.0.0'
 
   eslint-import-resolver-node@0.3.9:
     resolution: {integrity: sha512-WFj2isz22JahUv+B788TlO3N6zL3nNJGU8CcZbPZvVEkBPaJdCV4vy5wyghty5ROFbCRnm132v8BScu5/1BQ8g==}
@@ -2214,6 +2238,10 @@ snapshots:
 
   '@next/env@15.2.2-canary.7': {}
 
+  '@next/eslint-plugin-next@15.2.2':
+    dependencies:
+      fast-glob: 3.3.1
+
   '@next/eslint-plugin-next@15.2.2-canary.7':
     dependencies:
       fast-glob: 3.3.1
@@ -3065,6 +3093,10 @@ snapshots:
       - eslint-import-resolver-webpack
       - eslint-plugin-import-x
       - supports-color
+
+  eslint-config-prettier@10.1.1(eslint@9.22.0(jiti@2.4.2)):
+    dependencies:
+      eslint: 9.22.0(jiti@2.4.2)
 
   eslint-import-resolver-node@0.3.9:
     dependencies:

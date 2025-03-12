@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 
 export default function RoomsPage() {
-  const { user, token, isAuthenticated } = useAuth();
+  const { token } = useAuth();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -68,7 +68,7 @@ export default function RoomsPage() {
             <CardContent className="flex flex-col items-center justify-center space-y-4 pt-8 pb-8">
               <CardTitle>No rooms found</CardTitle>
               <CardDescription>
-                You haven't joined any rooms yet.
+                You haven&apos;t joined any rooms yet.
               </CardDescription>
               <Button onClick={() => router.push("/rooms/create")}>
                 Create Your First Room
