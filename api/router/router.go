@@ -28,7 +28,13 @@ func (router *Router) BuildRoutes(deps *deps.Deps) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{deps.Config.API.BaseURL.Url},
+		AllowedOrigins: []string{
+			"http://localhost:3000",                          
+			"https://chat-vit0rrs-projects.vercel.app",       
+			"https://chat-vit0rrs-projects.vercel.app/",   
+			"https://chat-jet-ten-81.vercel.app/",
+			"https://chat-git-main-vit0rrs-projects.vercel.app/",   
+		},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},

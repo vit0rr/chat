@@ -10,6 +10,7 @@ primary_region = 'gig'
 
 [env]
   BASE_URL = 'https://chat-vit0rrs-projects.vercel.app/'
+  BACKEND_URL = 'https://chat-solitary-butterfly-9161.fly.dev/'
   PORT = '8080'
 
 [http_service]
