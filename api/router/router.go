@@ -28,8 +28,7 @@ func (router *Router) BuildRoutes(deps *deps.Deps) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(cors.Handler(cors.Options{
-		// TODO: move it to the env URL
-		AllowedOrigins:   []string{"http://localhost:3000"},
+		AllowedOrigins:   []string{deps.Config.API.BaseURL.Url},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},

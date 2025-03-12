@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://chat-solitary-butterfly-9161.fly.dev/api/v1';
 
 export type RegisterRequest = {
     email: string;
