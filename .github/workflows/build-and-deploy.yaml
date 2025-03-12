@@ -18,14 +18,14 @@ jobs:
 
       - name: Build
         run: go build -v ./cmd/api/main.go
-
-  deploy:
-    name: Deploy app
-    needs: build
-    runs-on: ubuntu-latest # optional: ensure only one action runs at a time
-    steps:
-      - uses: actions/checkout@v4
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-      - run: flyctl deploy --remote-only
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_CHAT }}
+# TODO: Uncomment this when I have MongoDB deployed and Redis
+# deploy:
+#   name: Deploy app
+#   needs: build
+#   runs-on: ubuntu-latest # optional: ensure only one action runs at a time
+#   steps:
+#     - uses: actions/checkout@v4
+#     - uses: superfly/flyctl-actions/setup-flyctl@master
+#     - run: flyctl deploy --remote-only
+#       env:
+#         FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_CHAT }}
