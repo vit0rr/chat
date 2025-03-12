@@ -73,7 +73,7 @@ export function useWebSocket(roomId: string, userId: string, nickname: string, t
             return;
         }
 
-        const wsUrl = `ws://chat-solitary-butterfly-9161.fly.dev/api/v1/ws?room_id=${roomId}&user_id=${userId}&nickname=${encodeURIComponent(nickname)}`;
+        const wsUrl = `wss://chat-solitary-butterfly-9161.fly.dev/api/v1/ws?room_id=${roomId}&user_id=${userId}&nickname=${encodeURIComponent(nickname)}`;
         console.log('Connecting to WebSocket:', wsUrl);
 
         const ws = new WebSocket(wsUrl);
