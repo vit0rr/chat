@@ -62,29 +62,3 @@ export const getMessages = async (
         throw error;
     }
 };
-
-export async function joinRoom(roomId: string, userId: string, nickname: string, token: string) {
-    if (!token) {
-        throw new Error('Authentication required');
-    }
-
-    const response = await fetch(`${API_URL}/api/v1/rooms/${roomId}/register-user`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-            user_id: userId,
-            nickname: nickname,
-        }),
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to join room');
-    }
-
-    const data = await response.json();
-    return data;
-} 
