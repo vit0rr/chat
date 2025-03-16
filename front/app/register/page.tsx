@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { register, RegisterRequest } from "@/lib/auth";
 import { useAuth } from "@/lib/auth-context";
 import {
   Card,
@@ -18,6 +17,12 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
+
+type RegisterRequest = {
+  email: string;
+  password: string;
+  nickname: string;
+};
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState<RegisterRequest>({
@@ -43,8 +48,11 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const response = await register(formData);
-      const { token, user_id, nickname } = response;
+      const response = await fetch(`/api/auth/register`, {
+        method: "POST",
+        body: JSON.stringify(formData),
+      });
+      const { token, user_id, nickname } = await response.json();
       authLogin(token, user_id, nickname);
       router.push("/rooms");
     } catch (err: unknown) {
