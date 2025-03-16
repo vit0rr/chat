@@ -14,7 +14,7 @@ export function useRoomWebSocket(roomId: string, userId: string, token: string) 
             return;
         }
 
-        const wsUrl = `wss://${WS_URL}/api/v1/rooms/${roomId}/watch?user_id=${userId}`;
+        const wsUrl = `${WS_URL}/api/v1/rooms/${roomId}/watch?user_id=${userId}`;
         console.log('Connecting to Room WebSocket:', wsUrl);
 
         const ws = new WebSocket(wsUrl);
