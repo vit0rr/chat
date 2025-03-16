@@ -3,6 +3,7 @@ package router
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -27,14 +28,10 @@ type Router struct {
 func (router *Router) BuildRoutes(deps *deps.Deps) *chi.Mux {
 	r := chi.NewRouter()
 
+	allowedOrigins := strings.Split(deps.Config.Env.AllowedOrigins, ",")
+
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins: []string{
-			"http://localhost:3000",                          
-			"https://chat-vit0rrs-projects.vercel.app",       
-			"https://chat-vit0rrs-projects.vercel.app/",   
-			"https://chat-jet-ten-81.vercel.app/",
-			"https://chat-git-main-vit0rrs-projects.vercel.app/",   
-		},
+		AllowedOrigins: allowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},

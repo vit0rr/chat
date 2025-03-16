@@ -21,6 +21,7 @@ type Env struct {
 	Port string `hcl:"port,attr"`
 	Host string `hcl:"host,attr"`
 	Env  string `hcl:"env,attr"`
+	AllowedOrigins string `hcl:"allowed_origins,attr"`
 }
 
 // Server related config
@@ -52,6 +53,7 @@ func DefaultConfig(cfg Config) Config {
 			Port: os.Getenv("PORT"),
 			Host: os.Getenv("HOST"),
 			Env:  os.Getenv("ENV"),
+			AllowedOrigins: os.Getenv("ALLOWED_ORIGINS"),
 		},
 	}
 }
