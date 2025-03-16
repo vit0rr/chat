@@ -23,6 +23,35 @@ export default function Chat({ roomId, userId, nickname, token }: ChatProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
+  const formatMessageTime = (timestamp: string | Date) => {
+    const messageDate = new Date(timestamp);
+    const today = new Date();
+
+    const isToday =
+      messageDate.getDate() === today.getDate() &&
+      messageDate.getMonth() === today.getMonth() &&
+      messageDate.getFullYear() === today.getFullYear();
+
+    if (isToday) {
+      return messageDate.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } else {
+      return (
+        messageDate.toLocaleDateString([], {
+          month: "short",
+          day: "numeric",
+        }) +
+        " " +
+        messageDate.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      );
+    }
+  };
+
   const handleScroll = () => {
     const container = chatContainerRef.current;
     if (
@@ -93,32 +122,41 @@ export default function Chat({ roomId, userId, nickname, token }: ChatProps) {
 
         {messages.map((message, index) => (
           <div
-            key={`${message.timestamp}-${index}`}
-            className={`flex ${
-              message.sender_id === userId ? "justify-end" : "justify-start"
-            }`}
+            key={index}
+            className={message.type === "system" ? "my-2" : "my-1"}
           >
-            <div
-              className={`max-w-[70%] rounded-lg p-3 ${
-                message.sender_id === userId
-                  ? "bg-blue-500 text-white"
-                  : "bg-gray-200 dark:bg-gray-600"
-              }`}
-            >
-              {message.type === "system" ? (
-                <p className="text-sm italic text-gray-500 dark:text-gray-400">
-                  {message.content}
-                </p>
-              ) : (
-                <>
-                  <p className="text-xs mb-1 opacity-75">{message.nickname}</p>
-                  <p>{message.content}</p>
-                  <p className="text-xs mt-1 opacity-75">
-                    {new Date(message.timestamp).toLocaleTimeString()}
+            {message.type === "system" ? (
+              <div className="flex justify-center items-center">
+                <div className="bg-gray-100 dark:bg-gray-700 rounded-lg px-4 py-2 max-w-[80%]">
+                  <p className="text-sm italic text-gray-500 dark:text-gray-400">
+                    {message.content}
                   </p>
-                </>
-              )}
-            </div>
+                </div>
+              </div>
+            ) : (
+              <div
+                className={`flex ${
+                  message.sender_id === userId ? "justify-end" : "justify-start"
+                }`}
+              >
+                <div
+                  className={`max-w-[70%] rounded-lg p-3 ${
+                    message.sender_id === userId
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-200 dark:bg-gray-600"
+                  }`}
+                >
+                  <div className="flex justify-between items-center mb-1 text-xs">
+                    <span className="font-medium">{message.nickname}</span>
+                    <span className="ml-2 opacity-75">
+                      {formatMessageTime(message.timestamp)}
+                    </span>
+                  </div>
+
+                  <p className="mt-1">{message.content}</p>
+                </div>
+              </div>
+            )}
           </div>
         ))}
         <div ref={messagesEndRef} />

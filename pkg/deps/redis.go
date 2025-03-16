@@ -2,6 +2,7 @@ package deps
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -71,4 +72,37 @@ func RecoverUserStatuses(ctx context.Context, db *mongo.Database, redisClient *r
 	}
 
 	return nil
+}
+
+func CheckAndUpdateMessageRateLimit(ctx context.Context, redisClient *redis.Client, userID string, delay time.Duration) (bool, float64) {
+	lastMsgKey := fmt.Sprintf("rate_limit:%s:last_msg", userID)
+	
+	lastMsgStr, err := redisClient.Get(ctx, lastMsgKey).Result()
+	if err != nil && err != redis.Nil {
+		log.Error(ctx, "Failed to check rate limit", log.ErrAttr(err))
+		return true, 0
+	}
+	
+	if err == redis.Nil {
+		now := time.Now()
+		redisClient.Set(ctx, lastMsgKey, now.Format(time.RFC3339Nano), delay*2)
+		return true, 0
+	}
+	
+	lastMsgTime, err := time.Parse(time.RFC3339Nano, lastMsgStr)
+	if err != nil {
+		log.Error(ctx, "Failed to parse last message time", log.ErrAttr(err))
+		return true, 0
+	}
+	
+	now := time.Now()
+	timeSinceLastMessage := now.Sub(lastMsgTime)
+	if timeSinceLastMessage < delay {
+		timeToWait := delay - timeSinceLastMessage
+		return false, timeToWait.Seconds()
+	}
+	
+
+	redisClient.Set(ctx, lastMsgKey, now.Format(time.RFC3339Nano), delay*2)
+	return true, 0
 }

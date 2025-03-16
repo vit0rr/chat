@@ -25,12 +25,13 @@ import (
 
 // Client represents a connected websocket client with associated metadata
 type Client struct {
-	conn     *websocket.Conn // WebSocket connection
-	roomID   string          // ID of the room client is connected to
-	userID   string          // Unique identifier for the client
-	nickname string          // Display name of the client
-	mu       sync.Mutex      // Mutex for thread-safe operations
-	isOnline bool            // Online status of the client
+	conn            *websocket.Conn // WebSocket connection
+	roomID          string          // ID of the room client is connected to
+	userID          string          // Unique identifier for the client
+	nickname        string          // Display name of the client
+	mu              sync.Mutex      // Mutex for thread-safe operations
+	isOnline        bool            // Online status of the client
+	lastMessageTime time.Time       // Timestamp of the last message sent by this client
 }
 
 // MessageType defines the type of messages that can be sent
@@ -40,6 +41,7 @@ const (
 	TextMessage   MessageType = "text"   // Regular chat messages
 	SystemMessage MessageType = "system" // System notifications and alerts
 	MaxMessageLen             = 5000     // Maximum characters allowed per message
+	MessageDelay              = 1500 * time.Millisecond // 1.5 second delay between messages
 )
 
 // ChatMessage represents a message in the chat system
@@ -243,12 +245,13 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 	}
 
 	client := &Client{
-		conn:     conn,
-		roomID:   roomID,
-		userID:   userID,
-		nickname: nickname,
-		mu:       sync.Mutex{},
-		isOnline: true,
+		conn:            conn,
+		roomID:          roomID,
+		userID:          userID,
+		nickname:        nickname,
+		mu:              sync.Mutex{},
+		isOnline:        true,
+		lastMessageTime: time.Time{}, // Initialize with zero time
 	}
 
 	// Subscribe to room channel
@@ -341,6 +344,18 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 			continue
 		}
 
+		// Check for rate limiting
+		canSend, timeToWait := deps.CheckAndUpdateMessageRateLimit(ctx, s.redis, userID, MessageDelay)
+		if !canSend {
+			wsjson.Write(ctx, conn, ChatMessage{
+				Type:      SystemMessage,
+				Content:   fmt.Sprintf("Please wait %.1f seconds before sending another message", timeToWait),
+				RoomId:    roomID,
+				Timestamp: time.Now(),
+			})
+			continue
+		}
+		
 		// Check room lock status
 		room, err := repositories.GetRooms(ctx, s.Mongo, repositories.GetRoomData{
 			RoomID: roomID,
