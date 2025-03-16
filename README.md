@@ -1,6 +1,6 @@
 # Chat Service
 
-A real-time WebSocket-based chat built with Go, featuring MongoDB integration and Swagger documentation.
+A real-time WebSocket-based chat built with Go, featuring MongoDB, Redis and Swagger documentation.
 
  
 ## Getting Started
