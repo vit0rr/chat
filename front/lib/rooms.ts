@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://chat-solitary-butterfly-9161.fly.dev/api/v1';
+const API_URL = process.env.BACKEND_ROOT_URL;
 
 export type Room = {
     room_id: string;
@@ -33,7 +33,7 @@ export type Message = {
 }
 
 export const getRooms = async (token: string): Promise<Room[]> => {
-    const response = await axios.get<RoomsList>(`${API_URL}/rooms`, {
+    const response = await axios.get<RoomsList>(`${API_URL}/api/v1/rooms`, {
         headers: {
             Authorization: `Bearer ${token}`,
         },
@@ -59,7 +59,7 @@ export const registerUserInRoom = async (
 
     try {
         const response = await axios.post<RoomDetails>(
-            `${API_URL}/rooms/${id}/register-user`,
+            `${API_URL}/api/v1/rooms/${id}/register-user`,
             {
                 user_id: users[0].id,
                 nickname: users[0].nickname,
@@ -96,7 +96,7 @@ type RoomDetails = {
 };
 
 export const getRoom = async (roomId: string, token: string): Promise<Room> => {
-    const response = await axios.get(`${API_URL}/rooms/${roomId}`, {
+    const response = await axios.get(`${API_URL}/api/v1/rooms/${roomId}`, {
         headers: {
             Authorization: `Bearer ${token}`,
         },
@@ -116,7 +116,7 @@ export const getMessages = async (
 
     try {
         const response = await axios.get<Message[]>(
-            `${API_URL}/rooms/${roomId}/messages`,
+            `${API_URL}/api/v1/rooms/${roomId}/messages`,
             {
                 params: {
                     page,
@@ -140,7 +140,7 @@ export async function joinRoom(roomId: string, userId: string, nickname: string,
         throw new Error('Authentication required');
     }
 
-    const response = await fetch(`${API_URL}/rooms/${roomId}/register-user`, {
+    const response = await fetch(`${API_URL}/api/v1/rooms/${roomId}/register-user`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

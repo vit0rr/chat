@@ -8,7 +8,6 @@ type API struct {
 	Mongo Mongo `hcl:"mongo,block"`
 	Redis Redis `hcl:"redis,block"`
 	BaseURL BaseURL `hcl:"base_url,block"`
-	BackendURL BackendURL `hcl:"backend_url,block"`
 }
 
 type Mongo struct {
@@ -37,9 +36,6 @@ func GetDefaltAPIConfig(cfg Config) API {
 		},
 		BaseURL: BaseURL{
 			Url: os.Getenv("BASE_URL"),
-		},
-		BackendURL: BackendURL{
-			Url: os.Getenv("BACKEND_URL"),
 		},
 	}
 }

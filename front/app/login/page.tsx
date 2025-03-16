@@ -17,9 +17,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import axios from "axios";
 import Link from "next/link";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://chat-solitary-butterfly-9161.fly.dev/api/v1";
+const API_URL = process.env.BACKEND_ROOT_URL;
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -36,7 +34,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await axios.post(`${API_URL}/auth/login`, {
+      const response = await axios.post(`${API_URL}/api/v1/auth/login`, {
         email,
         password,
       });

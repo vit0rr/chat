@@ -2,6 +2,8 @@ import { AxiosError } from 'axios';
 import { useEffect, useRef, useState } from 'react';
 import { Message, getMessages } from './rooms';
 
+const WS_URL = process.env.BACKEND_WS_ROOT_URL;
+
 export function useWebSocket(roomId: string, userId: string, nickname: string, token: string) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [isConnected, setIsConnected] = useState(false);
@@ -73,7 +75,7 @@ export function useWebSocket(roomId: string, userId: string, nickname: string, t
             return;
         }
 
-        const wsUrl = `wss://chat-solitary-butterfly-9161.fly.dev/api/v1/ws?room_id=${roomId}&user_id=${userId}&nickname=${encodeURIComponent(nickname)}`;
+        const wsUrl = `wss://${WS_URL}/api/v1/ws?room_id=${roomId}&user_id=${userId}&nickname=${encodeURIComponent(nickname)}`;
         console.log('Connecting to WebSocket:', wsUrl);
 
         const ws = new WebSocket(wsUrl);

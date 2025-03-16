@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://chat-solitary-butterfly-9161.fly.dev/api/v1';
+const API_URL = process.env.BACKEND_ROOT_URL;
 
 export type RegisterRequest = {
     email: string;
@@ -20,17 +20,17 @@ export type AuthResponse = {
 }
 
 export const register = async (data: RegisterRequest): Promise<AuthResponse> => {
-    const response = await axios.post(`${API_URL}/auth/register`, data);
+    const response = await axios.post(`${API_URL}/api/v1/auth/register`, data);
     return response.data;
 };
 
 export const login = async (data: LoginRequest): Promise<AuthResponse> => {
-    const response = await axios.post(`${API_URL}/auth/login`, data);
+    const response = await axios.post(`${API_URL}/api/v1/auth/login`, data);
     return response.data;
 };
 
 export const deleteUser = async (userId: string, token: string): Promise<void> => {
-    await axios.delete(`${API_URL}/auth/user`, {
+    await axios.delete(`${API_URL}/api/v1/auth/user`, {
         data: { user_id: userId },
         headers: {
             Authorization: `Bearer ${token}`,

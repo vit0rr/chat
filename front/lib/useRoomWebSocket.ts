@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Room } from './rooms';
 
+const WS_URL = process.env.BACKEND_WS_ROOT_URL;
+
 export function useRoomWebSocket(roomId: string, userId: string, token: string) {
     const [room, setRoom] = useState<Room | null>(null);
     const [isConnected, setIsConnected] = useState(false);
@@ -12,7 +14,7 @@ export function useRoomWebSocket(roomId: string, userId: string, token: string) 
             return;
         }
 
-        const wsUrl = `wss://chat-solitary-butterfly-9161.fly.dev/api/v1/rooms/${roomId}/watch?user_id=${userId}`;
+        const wsUrl = `wss://${WS_URL}/api/v1/rooms/${roomId}/watch?user_id=${userId}`;
         console.log('Connecting to Room WebSocket:', wsUrl);
 
         const ws = new WebSocket(wsUrl);
