@@ -32,15 +32,6 @@ export type Message = {
     timestamp: string;
 }
 
-export const getRoom = async (roomId: string, token: string): Promise<Room> => {
-    const response = await axios.get(`${API_URL}/api/v1/rooms/${roomId}`, {
-        headers: {
-            Authorization: `Bearer ${token}`,
-        },
-    });
-    return response.data;
-};
-
 export const getMessages = async (
     roomId: string,
     token: string,

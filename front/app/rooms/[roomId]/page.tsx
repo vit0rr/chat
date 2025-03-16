@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { getRoom, Room, joinRoom } from "@/lib/rooms";
+import { Room, joinRoom } from "@/lib/rooms";
 import Link from "next/link";
 import Header from "@/components/Header";
 import Chat from "@/components/Chat";
@@ -42,7 +42,13 @@ export default function RoomDetailPage({
       try {
         setLoading(true);
         setError("");
-        const roomData = await getRoom(roomId, token);
+        const response = await fetch(`/api/room?roomId=${roomId}`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const roomData = await response.json();
         setRoom(roomData);
       } catch (err: unknown) {
         console.error("Error fetching room:", err);
@@ -77,7 +83,13 @@ export default function RoomDetailPage({
       setError("");
       await joinRoom(roomId, user.id, user.nickname, token);
       // Fetch the updated room data
-      const updatedRoom = await getRoom(roomId, token);
+      const response = await fetch(`/api/room?roomId=${roomId}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const updatedRoom = await response.json();
       setRoom(updatedRoom);
     } catch (err) {
       console.error("Error joining room:", err);
