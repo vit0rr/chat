@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { getRooms, Room } from "@/lib/rooms";
+import { Room } from "@/lib/rooms";
 import Link from "next/link";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,12 @@ export default function RoomsPage() {
 
       try {
         setLoading(true);
-        const roomsData = await getRooms(token);
+        const roomsResponse = await fetch(`/api/rooms`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const roomsData = await roomsResponse.json();
         setRooms(roomsData);
       } catch (error) {
         console.error("Error fetching rooms:", error);
