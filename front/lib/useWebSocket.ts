@@ -75,7 +75,7 @@ export function useWebSocket(roomId: string, userId: string, nickname: string, t
             return;
         }
 
-        const wsUrl = `wss://${WS_URL}/api/v1/ws?room_id=${roomId}&user_id=${userId}&nickname=${encodeURIComponent(nickname)}`;
+        const wsUrl = `${WS_URL}/api/v1/ws?room_id=${roomId}&user_id=${userId}&nickname=${encodeURIComponent(nickname)}`;
         console.log('Connecting to WebSocket:', wsUrl);
 
         const ws = new WebSocket(wsUrl);
