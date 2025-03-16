@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { registerUserInRoom } from "@/lib/rooms";
 import Header from "@/components/Header";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
@@ -51,15 +50,24 @@ export default function CreateRoomPage() {
       const newRoomId = crypto.randomUUID();
 
       // Register user in the new room
-      const response = await registerUserInRoom(
-        newRoomId,
-        [{ id: user.id, nickname }],
-        token
-      );
+      const response = await fetch(`/api/rooms`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          room_id: newRoomId,
+          user_id: user.id,
+          nickname: nickname,
+        }),
+      });
+
+      const data = await response.json();
 
       // Validate response and navigate
-      if (response && response.room_id) {
-        router.push(`/rooms/${response.room_id}`);
+      if (data && data.room_id) {
+        router.push(`/rooms/${data.room_id}`);
       } else {
         throw new Error("Invalid response from server");
       }
