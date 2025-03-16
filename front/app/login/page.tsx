@@ -14,10 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import axios from "axios";
 import Link from "next/link";
-
-const API_URL = process.env.BACKEND_ROOT_URL;
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -34,12 +31,12 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await axios.post(`${API_URL}/api/v1/auth/login`, {
-        email,
-        password,
+      const response = await fetch(`/api/auth/login`, {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
       });
 
-      const { token, user_id, nickname } = response.data;
+      const { token, user_id, nickname } = await response.json();
       login(token, user_id, nickname);
       setEmail("");
       setPassword("");
