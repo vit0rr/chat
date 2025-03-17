@@ -13,7 +13,11 @@ export async function GET(req: NextRequest) {
 
     const data = await response.json();
 
-    return NextResponse.json(data.rooms);
+    return NextResponse.json(data.rooms, {
+        headers: {
+            'X-New-Token': response.headers.get('X-New-Token') || ''
+        }
+    });
 }
 
 export async function POST(req: NextRequest) {
