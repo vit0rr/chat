@@ -89,7 +89,7 @@ export function useWebSocket(roomId: string, userId: string, nickname: string, t
             return;
         }
 
-        const wsUrl = `${WS_URL}/api/v1/ws?room_id=${roomId}&user_id=${userId}&nickname=${encodeURIComponent(nickname)}`;
+        const wsUrl = `${WS_URL}/api/v1/ws?room_id=${roomId}&user_id=${userId}&nickname=${encodeURIComponent(nickname)}&token=${token}`;
         console.log('Connecting to WebSocket:', wsUrl);
 
         const ws = new WebSocket(wsUrl);
@@ -127,7 +127,7 @@ export function useWebSocket(roomId: string, userId: string, nickname: string, t
                 ws.close();
             }
         };
-    }, [isPageLoaded, roomId, userId, nickname]);
+    }, [isPageLoaded, roomId, userId, nickname, token]);
 
     const sendMessage = (content: string) => {
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {

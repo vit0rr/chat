@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
+	"github.com/golang-jwt/jwt"
 	"github.com/vit0rr/chat/api/constants"
 
 	"github.com/redis/go-redis/v9"
@@ -164,6 +166,15 @@ type ServiceError struct {
 	Code    int
 }
 
+type Claims struct {
+	Email string `json:"email"`
+	Exp int64 `json:"exp"`
+	Iat int64 `json:"iat"`
+	Nickname string `json:"nickname"`
+	Sub string `json:"sub"`
+	jwt.StandardClaims
+}
+
 func (e ServiceError) Error() string {
 	return e.Message
 }
@@ -201,6 +212,30 @@ func NewService(deps *deps.Deps, db *mongo.Database, redisClient *redis.Client) 
 func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}, error) {
 	ctx := context.Background()
 
+	// Extract token from query parameters
+	token := r.URL.Query().Get("token")
+	log.Info(ctx, "Token", log.AnyAttr("token", token))
+	if token == "" {
+		log.Error(ctx, "Missing authentication token", log.AnyAttr("token", token))
+		return nil, fmt.Errorf("missing authentication token")
+	}
+
+	// Validate the token (you'll need to implement this function)
+	claims, err := validateToken(ctx, token)
+	if err != nil {
+		log.Error(ctx, "Invalid authentication token", log.ErrAttr(err))
+		return nil, fmt.Errorf("invalid authentication token: %v", err)
+	}
+
+	// Verify that the user ID in the token matches the requested user ID
+	tokenUserID := claims.Sub // Extract from your JWT claims
+	requestedUserID := r.URL.Query().Get("user_id")
+	
+	if tokenUserID != requestedUserID {
+		log.Error(ctx, "User ID mismatch", log.AnyAttr("token_user_id", tokenUserID), log.AnyAttr("requested_user_id", requestedUserID))
+		return nil, fmt.Errorf("user ID in token does not match requested user ID")
+	}
+
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
 		InsecureSkipVerify: true,
 	})
@@ -209,7 +244,6 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 	}
 
 	roomID := r.URL.Query().Get("room_id")
-	userID := r.URL.Query().Get("user_id")
 	nickname := r.URL.Query().Get("nickname")
 
 	room, err := repositories.GetRooms(ctx, s.Mongo, repositories.GetRoomData{
@@ -230,7 +264,7 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 
 	userAuthorized := false
 	for _, user := range room.Users {
-		if user.ID == userID {
+		if user.ID == requestedUserID {
 			userAuthorized = true
 			break
 		}
@@ -239,7 +273,7 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 	if !userAuthorized {
 		log.Error(ctx, "User not authorized to join room",
 			log.AnyAttr("room_id", roomID),
-			log.AnyAttr("user_id", userID))
+			log.AnyAttr("user_id", requestedUserID))
 		conn.Close(websocket.StatusInternalError, "User not authorized to join room")
 		return nil, fmt.Errorf("user not authorized to join room")
 	}
@@ -247,7 +281,7 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 	client := &Client{
 		conn:            conn,
 		roomID:          roomID,
-		userID:          userID,
+		userID:          requestedUserID,
 		nickname:        nickname,
 		mu:              sync.Mutex{},
 		isOnline:        true,
@@ -262,8 +296,8 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 	roomKey := fmt.Sprintf("room:%s:clients", roomID)
 	onlineKey := fmt.Sprintf("room:%s:online", roomID)
 	pipe := s.redis.Pipeline()
-	pipe.SAdd(ctx, roomKey, userID)
-	pipe.SAdd(ctx, onlineKey, userID)
+	pipe.SAdd(ctx, roomKey, requestedUserID)
+	pipe.SAdd(ctx, onlineKey, requestedUserID)
 	pipe.Expire(ctx, roomKey, 24*time.Hour)
 	pipe.Expire(ctx, onlineKey, 1*time.Second)
 	_, err = pipe.Exec(ctx)
@@ -274,17 +308,17 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 	}
 
 	repositories.UpdateUser(ctx, s.Mongo, repositories.UpdateUserData{
-		UserID:   userID,
+		UserID:   requestedUserID,
 		Activity: &[]string{"online"}[0],
 	})
 
 	// Cleanup on disconnect
 	defer func() {
-		s.redis.SRem(ctx, roomKey, userID)
-		s.redis.SRem(ctx, onlineKey, userID)
+		s.redis.SRem(ctx, roomKey, requestedUserID)
+		s.redis.SRem(ctx, onlineKey, requestedUserID)
 
 		repositories.UpdateUser(ctx, s.Mongo, repositories.UpdateUserData{
-			UserID:   userID,
+			UserID:   requestedUserID,
 			Activity: &[]string{"offline"}[0],
 		})
 
@@ -345,7 +379,7 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 		}
 
 		// Check for rate limiting
-		canSend, timeToWait := deps.CheckAndUpdateMessageRateLimit(ctx, s.redis, userID, MessageDelay)
+		canSend, timeToWait := deps.CheckAndUpdateMessageRateLimit(ctx, s.redis, requestedUserID, MessageDelay)
 		if !canSend {
 			wsjson.Write(ctx, conn, ChatMessage{
 				Type:      SystemMessage,
@@ -366,7 +400,7 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 		}
 
 		// If the room is locked by this user, unlock it when they send any message
-		if room.LockedBy == userID {
+		if room.LockedBy == requestedUserID {
 			collection := s.Mongo.Collection(constants.RoomsCollection)
 			_, err = collection.UpdateOne(ctx,
 				bson.M{"_id": roomID},
@@ -386,7 +420,7 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 		}
 
 		// Check if user can send message
-		if room.LockedBy != "" && room.LockedBy != userID {
+		if room.LockedBy != "" && room.LockedBy != requestedUserID {
 			client.mu.Lock()
 			wsjson.Write(ctx, conn, ChatMessage{
 				Type:      SystemMessage,
@@ -399,7 +433,7 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 		}
 
 		message.Timestamp = time.Now()
-		message.SenderId = userID
+		message.SenderId = requestedUserID
 		message.Nickname = nickname
 		message.RoomId = roomID
 
@@ -1239,4 +1273,36 @@ func newError(errKey string) Error {
 		ErrorID:      &errMsg.ID,
 		ErrorCode:    &errMsg.Code,
 	}
+}
+
+func validateToken(ctx context.Context, tokenString string) (*Claims, error) {
+	// Parse the token
+	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			log.Error(ctx, "Unexpected signing method", log.ErrAttr(fmt.Errorf("unexpected signing method: %v", token.Header["alg"])))
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+
+		log.Info(ctx, "Token secret", log.AnyAttr("secret", os.Getenv("JWT_SECRET")))
+		return []byte(os.Getenv("JWT_SECRET")), nil
+	})
+
+	fmt.Println("Tokenaaaa", token)
+
+	if err != nil {
+		log.Error(ctx, "Failed to parse token", log.ErrAttr(err))
+		return nil, err
+	}
+
+	log.Info(ctx, "Token parsed", log.AnyAttr("token", token))
+
+	// Extract and return claims
+	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
+		fmt.Println("Claims", claims)
+		return claims, nil
+	}
+
+
+	log.Error(ctx, "Invalid token", log.ErrAttr(fmt.Errorf("invalid token")))
+	return nil, fmt.Errorf("invalid token")
 }

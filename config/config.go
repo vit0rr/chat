@@ -12,9 +12,11 @@ type Config struct {
 	Server Server `hcl:"server,block"`
 	API    API    `hcl:"api,block"`
 	Env    Env    `hcl:"env,block"`
-	JWT    struct {
-		Secret string `env:"JWT_SECRET" envDefault:"secret-key"`
-	}
+	JWT    JWT    `hcl:"jwt,block"`
+}
+
+type JWT struct {
+	Secret string `hcl:"secret,attr"`
 }
 
 type Env struct {
@@ -49,6 +51,9 @@ func DefaultConfig(cfg Config) Config {
 			CtxTimeout: 5,
 		},
 		API: GetDefaltAPIConfig(cfg),
+		JWT: JWT{
+			Secret: os.Getenv("JWT_SECRET"),
+		},
 		Env: Env{
 			Port: os.Getenv("PORT"),
 			Host: os.Getenv("HOST"),
