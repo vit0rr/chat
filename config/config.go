@@ -14,11 +14,11 @@ type Config struct {
 	Env    Env    `hcl:"env,block"`
 	JWT    JWT    `hcl:"jwt,block"`
 	APIKey string `hcl:"api_key,attr"`
-	OldJWT OldJWT `hcl:"old_jwt,block"`
 }
 
 type JWT struct {
 	Secret string `hcl:"secret,attr"`
+	OldSecret string `hcl:"old_secret,attr"`
 }
 
 type OldJWT struct {
@@ -59,6 +59,7 @@ func DefaultConfig(cfg Config) Config {
 		API: GetDefaltAPIConfig(cfg),
 		JWT: JWT{
 			Secret: os.Getenv("JWT_SECRET"),
+			OldSecret: os.Getenv("OLD_JWT_SECRET"),
 		},
 		Env: Env{
 			Port: os.Getenv("PORT"),
@@ -67,8 +68,5 @@ func DefaultConfig(cfg Config) Config {
 			AllowedOrigins: os.Getenv("ALLOWED_ORIGINS"),
 		},
 		APIKey: os.Getenv("API_KEY"),
-		OldJWT: OldJWT{
-			Secret: os.Getenv("OLD_JWT_SECRET"),
-		},
 	}
 }
