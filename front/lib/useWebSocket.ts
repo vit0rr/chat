@@ -116,6 +116,8 @@ export function useWebSocket(roomId: string, userId: string, nickname: string, t
         };
 
         ws.onclose = (event) => {
+            // This is definitely not the best way to handle this, but I'm lazy.
+            // Ideally we'd have to check if the token does not have signature, and if so, generate a new one
             if (event.reason === 'Invalid authentication token') {
                 setError('Unable to connect. Looks like we changed our signature. Please logout and login again to fix it.');
             } else {

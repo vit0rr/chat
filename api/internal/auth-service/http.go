@@ -1,6 +1,7 @@
 package authservice
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/vit0rr/chat/pkg/deps"
@@ -36,6 +37,18 @@ func (h *HTTP) Register(w http.ResponseWriter, r *http.Request) (interface{}, er
 
 func (h *HTTP) Login(w http.ResponseWriter, r *http.Request) (interface{}, error) {
 	result, err := h.service.Login(r.Context(), r.Body)
+
+	authHeader := r.Header.Get("Authorization")
+	fmt.Println("authHeader", authHeader)
+	fmt.Println("h.service.deps.Config.APIKey", h.service.deps.Config.APIKey)
+	if authHeader == "" || authHeader != fmt.Sprintf("Bearer %s", h.service.deps.Config.APIKey) {
+		w.WriteHeader(http.StatusUnauthorized)
+		return ErrorResponse{
+			Error: "Authorization header required",
+			Code:  http.StatusUnauthorized,
+		}, nil
+	}
+
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return ErrorResponse{

@@ -13,9 +13,15 @@ type Config struct {
 	API    API    `hcl:"api,block"`
 	Env    Env    `hcl:"env,block"`
 	JWT    JWT    `hcl:"jwt,block"`
+	APIKey string `hcl:"api_key,attr"`
+	OldJWT OldJWT `hcl:"old_jwt,block"`
 }
 
 type JWT struct {
+	Secret string `hcl:"secret,attr"`
+}
+
+type OldJWT struct {
 	Secret string `hcl:"secret,attr"`
 }
 
@@ -59,6 +65,10 @@ func DefaultConfig(cfg Config) Config {
 			Host: os.Getenv("HOST"),
 			Env:  os.Getenv("ENV"),
 			AllowedOrigins: os.Getenv("ALLOWED_ORIGINS"),
+		},
+		APIKey: os.Getenv("API_KEY"),
+		OldJWT: OldJWT{
+			Secret: os.Getenv("OLD_JWT_SECRET"),
 		},
 	}
 }
