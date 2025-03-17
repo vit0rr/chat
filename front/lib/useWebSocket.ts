@@ -115,8 +115,13 @@ export function useWebSocket(roomId: string, userId: string, nickname: string, t
             setIsConnected(false);
         };
 
-        ws.onclose = () => {
-            console.log('WebSocket disconnected');
+        ws.onclose = (event) => {
+            if (event.reason === 'Invalid authentication token') {
+                setError('Unable to connect. Looks like we changed our signature. Please logout and login again to fix it.');
+            } else {
+                setError('Disconnected from chat');
+            }
+
             setIsConnected(false);
         };
 

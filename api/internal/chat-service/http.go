@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/redis/go-redis/v9"
 	"github.com/vit0rr/chat/pkg/deps"
+	"github.com/vit0rr/chat/pkg/log"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -31,7 +32,18 @@ func NewHTTP(deps *deps.Deps, db *mongo.Database, redisClient *redis.Client) *HT
 }
 
 func (h *HTTP) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}, error) {
-	return h.service.WebSocket(w, r)
+	result, err := h.service.WebSocket(w, r)
+	if err != nil {
+		log.Error(r.Context(), "WebSocket error", log.ErrAttr(err))
+		w.WriteHeader(http.StatusUnauthorized)
+		return ErrorResponse{
+			Error:   err.Error(),
+			Code:    http.StatusUnauthorized,
+			ErrorID: "websocket_error",
+		}, nil
+	}
+
+	return result, nil
 }
 
 func (h *HTTP) RegisterUser(w http.ResponseWriter, r *http.Request) (interface{}, error) {
