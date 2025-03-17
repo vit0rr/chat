@@ -1,8 +1,16 @@
 import { AxiosError } from 'axios';
 import { useEffect, useRef, useState } from 'react';
-import { Message, getMessages } from './rooms';
 
 const WS_URL = process.env.BACKEND_WS_ROOT_URL;
+
+export type Message = {
+    type: 'text' | 'system';
+    content: string;
+    room_id: string;
+    sender_id: string;
+    nickname: string;
+    timestamp: string;
+}
 
 export function useWebSocket(roomId: string, userId: string, nickname: string, token: string) {
     const [messages, setMessages] = useState<Message[]>([]);
@@ -29,7 +37,13 @@ export function useWebSocket(roomId: string, userId: string, nickname: string, t
         const loadMessageHistory = async () => {
             try {
                 setIsLoadingHistory(true);
-                const historicMessages = await getMessages(roomId, token, page);
+                const historicMessagesResponse = await fetch(`/api/messages?roomId=${roomId}&page=${page}&limit=50`, {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                });
+
+                const historicMessages = await historicMessagesResponse.json();
 
                 // Handle case where historicMessages is null or empty
                 if (!historicMessages || historicMessages.length === 0) {
