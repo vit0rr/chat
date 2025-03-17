@@ -7,11 +7,14 @@ export async function POST(req: NextRequest) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.API_KEY}`,
         },
         body: JSON.stringify({ email, password }),
     });
 
     const data = await response.json();
+
+    if (!response.ok) return NextResponse.json({ error: data.error }, { status: data.code });
 
     return NextResponse.json(data);
 } 

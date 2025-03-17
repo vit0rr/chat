@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -228,20 +227,20 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 	}
 
 		// Validate the token (you'll need to implement this function)
-		claims, err := validateToken(ctx, token)
-		if err != nil {
-			log.Error(ctx, "Invalid authentication token", log.ErrAttr(err))
-			conn.Close(websocket.StatusPolicyViolation, "Invalid authentication token")
+		// claims, err := validateToken(ctx, token)
+		// if err != nil {
+		// 	log.Error(ctx, "Invalid authentication token", log.ErrAttr(err))
+		// 	conn.Close(websocket.StatusPolicyViolation, "Invalid authentication token")
 			
-			return nil, nil
-		}
-		tokenUserID := claims.Sub // Extract from your JWT claims
+		// 	return nil, nil
+		// }
+		// tokenUserID := claims.Sub // Extract from your JWT claims
 		requestedUserID := r.URL.Query().Get("user_id")
 	
-		if tokenUserID != requestedUserID {
-			log.Error(ctx, "User ID mismatch", log.AnyAttr("token_user_id", tokenUserID), log.AnyAttr("requested_user_id", requestedUserID))
-			return nil, fmt.Errorf("user ID in token does not match requested user ID")
-		}
+		// if tokenUserID != requestedUserID {
+		// 	log.Error(ctx, "User ID mismatch", log.AnyAttr("token_user_id", tokenUserID), log.AnyAttr("requested_user_id", requestedUserID))
+		// 	return nil, fmt.Errorf("user ID in token does not match requested user ID")
+		// }
 
 	roomID := r.URL.Query().Get("room_id")
 	nickname := r.URL.Query().Get("nickname")
@@ -1275,32 +1274,32 @@ func newError(errKey string) Error {
 	}
 }
 
-func validateToken(ctx context.Context, tokenString string) (*Claims, error) {
-	// Parse the token
-	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			log.Error(ctx, "Unexpected signing method", log.ErrAttr(fmt.Errorf("unexpected signing method: %v", token.Header["alg"])))
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
+// func validateToken(ctx context.Context, tokenString string) (*Claims, error) {
+// 	// Parse the token
+// 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+// 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+// 			log.Error(ctx, "Unexpected signing method", log.ErrAttr(fmt.Errorf("unexpected signing method: %v", token.Header["alg"])))
+// 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+// 		}
 
-		log.Info(ctx, "Token secret", log.AnyAttr("secret", os.Getenv("JWT_SECRET")))
-		return []byte(os.Getenv("JWT_SECRET")), nil
-	})
-
-
-	if err != nil {
-		log.Error(ctx, "Failed to parse token", log.ErrAttr(err))
-		return nil, err
-	}
-
-	log.Info(ctx, "Token parsed", log.AnyAttr("token", token))
-
-	// Extract and return claims
-	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
-		return claims, nil
-	}
+// 		log.Info(ctx, "Token secret", log.AnyAttr("secret", os.Getenv("JWT_SECRET")))
+// 		return []byte(os.Getenv("JWT_SECRET")), nil
+// 	})
 
 
-	log.Error(ctx, "Invalid token", log.ErrAttr(fmt.Errorf("invalid token")))
-	return nil, fmt.Errorf("invalid token")
-}
+// 	if err != nil {
+// 		log.Error(ctx, "Failed to parse token", log.ErrAttr(err))
+// 		return nil, err
+// 	}
+
+// 	log.Info(ctx, "Token parsed", log.AnyAttr("token", token))
+
+// 	// Extract and return claims
+// 	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
+// 		return claims, nil
+// 	}
+
+
+// 	log.Error(ctx, "Invalid token", log.ErrAttr(fmt.Errorf("invalid token")))
+// 	return nil, fmt.Errorf("invalid token")
+// }

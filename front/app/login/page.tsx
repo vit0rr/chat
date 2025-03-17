@@ -30,26 +30,24 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
 
-    try {
-      const response = await fetch(`/api/auth/login`, {
-        method: "POST",
-        body: JSON.stringify({ email, password }),
-      });
+    const response = await fetch(`/api/auth/login`, {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
 
-      const { token, user_id, nickname } = await response.json();
-      login(token, user_id, nickname);
-      setEmail("");
-      setPassword("");
-      router.push("/rooms");
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("An unexpected error occurred");
-      }
-    } finally {
+    const data = await response.json();
+
+    if (data.error) {
+      setError(data.error);
       setLoading(false);
+      return;
     }
+
+    const { token, user_id, nickname } = data;
+    login(token, user_id, nickname);
+    setEmail("");
+    setPassword("");
+    router.push("/rooms");
   };
 
   return (
