@@ -219,29 +219,29 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 		log.Error(ctx, "Missing authentication token", log.AnyAttr("token", token))
 		return nil, fmt.Errorf("missing authentication token")
 	}
-
-	// Validate the token (you'll need to implement this function)
-	claims, err := validateToken(ctx, token)
-	if err != nil {
-		log.Error(ctx, "Invalid authentication token", log.ErrAttr(err))
-		return nil, fmt.Errorf("invalid authentication token: %v", err)
-	}
-
-	// Verify that the user ID in the token matches the requested user ID
-	tokenUserID := claims.Sub // Extract from your JWT claims
-	requestedUserID := r.URL.Query().Get("user_id")
 	
-	if tokenUserID != requestedUserID {
-		log.Error(ctx, "User ID mismatch", log.AnyAttr("token_user_id", tokenUserID), log.AnyAttr("requested_user_id", requestedUserID))
-		return nil, fmt.Errorf("user ID in token does not match requested user ID")
-	}
-
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
 		InsecureSkipVerify: true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("websocket accept error: %v", err)
 	}
+
+		// Validate the token (you'll need to implement this function)
+		claims, err := validateToken(ctx, token)
+		if err != nil {
+			log.Error(ctx, "Invalid authentication token", log.ErrAttr(err))
+			conn.Close(websocket.StatusPolicyViolation, "Invalid authentication token")
+			
+			return nil, nil
+		}
+		tokenUserID := claims.Sub // Extract from your JWT claims
+		requestedUserID := r.URL.Query().Get("user_id")
+	
+		if tokenUserID != requestedUserID {
+			log.Error(ctx, "User ID mismatch", log.AnyAttr("token_user_id", tokenUserID), log.AnyAttr("requested_user_id", requestedUserID))
+			return nil, fmt.Errorf("user ID in token does not match requested user ID")
+		}
 
 	roomID := r.URL.Query().Get("room_id")
 	nickname := r.URL.Query().Get("nickname")
@@ -1287,7 +1287,6 @@ func validateToken(ctx context.Context, tokenString string) (*Claims, error) {
 		return []byte(os.Getenv("JWT_SECRET")), nil
 	})
 
-	fmt.Println("Tokenaaaa", token)
 
 	if err != nil {
 		log.Error(ctx, "Failed to parse token", log.ErrAttr(err))
@@ -1298,7 +1297,6 @@ func validateToken(ctx context.Context, tokenString string) (*Claims, error) {
 
 	// Extract and return claims
 	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
-		fmt.Println("Claims", claims)
 		return claims, nil
 	}
 
