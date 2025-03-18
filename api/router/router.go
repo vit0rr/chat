@@ -76,9 +76,6 @@ func (router *Router) BuildRoutes(deps *deps.Deps) *chi.Mux {
 			})
 			r.Route("/users", func(r chi.Router) {
 				r.Use(pkgMiddlware.VerifyApiKey(deps))
-				r.Get("/", telemetry.HandleFuncLogger(router.chatService.GetUsers))
-				r.Get("/{userId}", telemetry.HandleFuncLogger(router.chatService.GetUser))
-				r.Post("/create-user", telemetry.HandleFuncLogger(router.chatService.CreateUser))
 				r.Patch("/{userId}", telemetry.HandleFuncLogger(router.chatService.UpdateUser))
 			})
 		})

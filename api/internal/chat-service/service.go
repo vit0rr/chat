@@ -879,50 +879,6 @@ func (s *Service) broadcastToRoom(ctx context.Context, roomID string, message Ch
 	}
 }
 
-func (s *Service) GetUsers(ctx context.Context, query GetUsersQuery) (interface{}, error) {
-	cursor, err := repositories.GetUsers(ctx, s.Mongo, repositories.GetUserData{})
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user: %v", err)
-	}
-
-	users := []repositories.User{}
-	for cursor.Next(ctx) {
-		var user repositories.User
-		if err := cursor.Decode(&user); err != nil {
-			log.Error(ctx, "Failed to decode user", log.ErrAttr(err))
-			continue
-		}
-
-		users = append(users, user)
-	}
-
-	return users, nil
-}
-
-func (s *Service) GetUser(ctx context.Context, userID string) (interface{}, error) {
-	user, err := repositories.GetUser(ctx, s.Mongo, repositories.GetUserData{
-		UserID: userID,
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user: %v", err)
-	}
-
-	rooms, err := repositories.GetAllRoomsWhereUserIsRegistered(ctx, s.Mongo, repositories.GetUserData{
-		UserID: userID,
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to get rooms: %v", err)
-	}
-
-	return map[string]interface{}{
-		"user":  user,
-		"rooms": rooms,
-	}, nil
-}
-
 func (s *Service) CreateUser(ctx context.Context, body io.ReadCloser) (interface{}, error) {
 	defer body.Close()
 
@@ -940,23 +896,45 @@ func (s *Service) CreateUser(ctx context.Context, body io.ReadCloser) (interface
 	return result, nil
 }
 
-func (s *Service) UpdateUser(ctx context.Context, ID string, body io.ReadCloser) (interface{}, error) {
+func (s *Service) UpdateUser(ctx context.Context, ID string, body io.ReadCloser) (interface{}, Error) {
 	defer body.Close()
 
 	var user repositories.UpdateUserData
 	err := json.NewDecoder(body).Decode(&user)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode user: %v", err)
+		log.Error(ctx, constants.ErrorMessages[constants.FailedToDecodeBody].Message, log.ErrAttr(err))
+		if svcErr := NewServiceError(constants.FailedToDecodeBody); svcErr != nil {
+			if serviceErr, ok := svcErr.(ServiceError); ok {
+				return nil, Error{
+					ErrorMessage: &serviceErr.Message,
+					ErrorID:      &serviceErr.ID,
+					ErrorCode:    &serviceErr.Code,
+				}
+			}
+		}
+
+		return nil, newError("failed_to_decode_body")
 	}
 
 	user.UserID = ID
 
 	result, err := repositories.UpdateUser(ctx, s.Mongo, user)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update user: %v", err)
+		log.Error(ctx, constants.ErrorMessages[constants.FailedToUpdateUser].Message, log.ErrAttr(err))
+		if svcErr := NewServiceError(constants.FailedToUpdateUser); svcErr != nil {
+			if serviceErr, ok := svcErr.(ServiceError); ok {
+				return nil, Error{
+					ErrorMessage: &serviceErr.Message,
+					ErrorID:      &serviceErr.ID,
+					ErrorCode:    &serviceErr.Code,
+				}
+			}
+		}
+
+		return nil, newError("failed_to_update_user")
 	}
 
-	return result, nil
+	return result, Error{}
 }
 
 func (s *Service) GetRoom(ctx context.Context, roomID string) (RoomDetails, Error) {
