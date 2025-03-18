@@ -65,7 +65,9 @@ func (router *Router) BuildRoutes(deps *deps.Deps) *chi.Mux {
 			r.Use(pkgMiddlware.JWTAuth(deps))
 
 			r.Get("/ws", telemetry.HandleFuncLogger(router.chatService.WebSocket))
+
 			r.Route("/rooms", func(r chi.Router) {
+				r.Use(pkgMiddlware.VerifyApiKey(deps))
 				r.Get("/", telemetry.HandleFuncLogger(router.chatService.GetRooms))
 				r.Get("/{roomId}", telemetry.HandleFuncLogger(router.chatService.GetRoom))
 				r.Get("/{roomId}/messages", telemetry.HandleFuncLogger(router.chatService.GetMessages))
@@ -74,6 +76,7 @@ func (router *Router) BuildRoutes(deps *deps.Deps) *chi.Mux {
 				r.Post("/{roomId}/lock", telemetry.HandleFuncLogger(router.chatService.LockRoom))
 			})
 			r.Route("/users", func(r chi.Router) {
+				r.Use(pkgMiddlware.VerifyApiKey(deps))
 				r.Get("/", telemetry.HandleFuncLogger(router.chatService.GetUsers))
 				r.Get("/{userId}", telemetry.HandleFuncLogger(router.chatService.GetUser))
 				r.Get("/all-online-users", telemetry.HandleFuncLogger(router.chatService.GetOnlineUsersFromAllRooms))
@@ -83,6 +86,7 @@ func (router *Router) BuildRoutes(deps *deps.Deps) *chi.Mux {
 			})
 
 			r.Route("/messages", func(r chi.Router) {
+				r.Use(pkgMiddlware.VerifyApiKey(deps))
 				r.Route("/total-sent", func(r chi.Router) {
 					r.Get("/", telemetry.HandleFuncLogger(router.chatService.GetTotalMessagesSent))
 					r.Get("/{roomId}", telemetry.HandleFuncLogger(router.chatService.GetTotalMessagesSentInARoom))
@@ -90,6 +94,7 @@ func (router *Router) BuildRoutes(deps *deps.Deps) *chi.Mux {
 			})
 
 			r.Route("/analytics", func(r chi.Router) {
+				r.Use(pkgMiddlware.VerifyApiKey(deps))
 				r.Get("/user-last-messages", telemetry.HandleFuncLogger(router.chatService.GetUsersWhoSentMessagesInTheLastDays))
 			})
 		})

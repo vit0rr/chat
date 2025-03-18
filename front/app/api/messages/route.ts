@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`,
+                    'X-API-Key': process.env.API_KEY || '',
                 },
             }
         );
