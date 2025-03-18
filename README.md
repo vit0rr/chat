@@ -2,6 +2,9 @@
 
 A full-stack real-time chat application featuring a Go backend with WebSockets, MongoDB for persistent storage, Redis for pub/sub functionality, and a React/Next.js frontend.
 
+- [Swagger doc.](https://chat-solitary-butterfly-9161.fly.dev/swagger/index.html)
+- [NextJS front-end](https://chat-jet-ten-81.vercel.app/)
+
 <img src="./img/chat.png" alt="print showing the chat landing page" style="border-radius: 6px !important;"/>
 
 
