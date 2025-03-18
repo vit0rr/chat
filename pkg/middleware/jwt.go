@@ -84,6 +84,20 @@ func JWTAuth(deps *deps.Deps) func(http.Handler) http.Handler {
 	}
 }
 
+func VerifyApiKey(deps *deps.Deps) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			apiKey := r.Header.Get("X-API-Key")
+			if apiKey != deps.Config.APIKey {
+				http.Error(w, "Invalid API key", http.StatusUnauthorized)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 func isPublicPath(path string) bool {
 	publicPaths := []string{
 		"/api/v1/auth/register",

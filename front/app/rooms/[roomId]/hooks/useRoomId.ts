@@ -10,7 +10,7 @@ export const useRoomId = (params: RoomIdParams) => {
     const resolvedParams = use(params);
     const roomId = resolvedParams.roomId;
 
-    const { user, token, isAuthenticated } = useAuth();
+    const { user, token, isAuthenticated, logout } = useAuth();
     const [room, setRoom] = useState<Room | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -35,6 +35,11 @@ export const useRoomId = (params: RoomIdParams) => {
                         Authorization: `Bearer ${token}`,
                     },
                 });
+
+                if (response.status === 401) {
+                    logout();
+                    return;
+                }
                 const roomData = await response.json();
                 setRoom(roomData);
             } catch (err: unknown) {
@@ -53,7 +58,7 @@ export const useRoomId = (params: RoomIdParams) => {
         };
 
         fetchRoom();
-    }, [isAuthenticated, token, roomId, router]);
+    }, [isAuthenticated, token, roomId, router, logout]);
 
     const isUserInRoom = room?.users?.some(
         (roomUser) => roomUser.id === user?.id
@@ -84,6 +89,12 @@ export const useRoomId = (params: RoomIdParams) => {
                     Authorization: `Bearer ${token}`,
                 },
             });
+
+            if (response.status === 401) {
+                logout();
+                return;
+            }
+
             const updatedRoom = await response.json();
             setRoom(updatedRoom);
         } catch (err) {

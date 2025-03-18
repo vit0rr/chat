@@ -9,8 +9,13 @@ export async function GET(req: NextRequest) {
         headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
+            'X-API-Key': process.env.API_KEY || '',
         },
     });
+
+    if (response.status === 401) {
+        return NextResponse.json({ error: "Unauthorized", shouldSignOut: true }, { status: 401 });
+    }
 
     const data = await response.json();
 
@@ -29,12 +34,17 @@ export async function POST(req: NextRequest) {
         headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
+            'X-API-Key': process.env.API_KEY || '',
         },
         body: JSON.stringify({
             user_id: userId,
             nickname: nickname,
         }),
     });
+
+    if (response.status === 401) {
+        return NextResponse.json({ error: "Unauthorized", shouldSignOut: true }, { status: 401 });
+    }
 
     const data = await response.json();
 
