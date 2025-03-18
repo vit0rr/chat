@@ -2,11 +2,13 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/vit0rr/chat/pkg/deps"
+	"github.com/vit0rr/chat/pkg/log"
 )
 
 type contextKey string
@@ -33,6 +35,7 @@ func JWTAuth(deps *deps.Deps) func(http.Handler) http.Handler {
 				// so I'm checking if the token is in the query params too
 				tokenString := r.URL.Query().Get("token")
 				if tokenString == "" {
+					log.Error(r.Context(), "Authorization header required", log.ErrAttr(errors.New("authorization header required")))
 					http.Error(w, "Authorization header required", http.StatusUnauthorized)
 					return
 				}
@@ -43,6 +46,7 @@ func JWTAuth(deps *deps.Deps) func(http.Handler) http.Handler {
 			// Extract the token
 			tokenString := strings.Replace(authHeader, "Bearer ", "", 1)
 			if tokenString == "" {
+				log.Error(r.Context(), "Invalid token format", log.ErrAttr(errors.New("invalid token format")))
 				http.Error(w, "Invalid token format", http.StatusUnauthorized)
 				return
 			}
@@ -55,10 +59,11 @@ func JWTAuth(deps *deps.Deps) func(http.Handler) http.Handler {
 			// If token is invalid with current secret, try with old secret
 			if err != nil || !token.Valid {
 				oldToken, oldErr := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-					return []byte(deps.Config.JWT.OldSecret), nil
+					return []byte(""), nil
 				})
 
 				if oldErr != nil || !oldToken.Valid {
+					log.Error(r.Context(), "Invalid or expired token", log.ErrAttr(errors.New("invalid or expired token")))
 					http.Error(w, "Invalid or expired token", http.StatusUnauthorized)
 					return
 				}
