@@ -1,89 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import Header from "@/components/Header";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
+import { useCreate } from "./hooks/useCreate";
 
 export default function CreateRoomPage() {
   const { user, token, isAuthenticated } = useAuth();
-  const [nickname, setNickname] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const router = useRouter();
+  const { error, handleSubmit, nickname, setNickname, loading } = useCreate({
+    user,
+    token,
+    router,
+    isAuthenticated,
+  });
 
-  // Set initial nickname when user data is available
-  useEffect(() => {
-    if (user?.nickname) {
-      setNickname(user.nickname);
-    }
-  }, [user]);
-
-  // Handle authentication
-  useEffect(() => {
-    if (!isAuthenticated) {
-      router.push("/login");
-    }
-  }, [isAuthenticated, router]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!nickname.trim()) {
-      setError("Nickname is required");
-      return;
-    }
-
-    if (!user?.id || !token) {
-      setError("Please log in again");
-      router.push("/login");
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError("");
-
-      // Generate a new room ID
-      const newRoomId = crypto.randomUUID();
-
-      // Register user in the new room
-      const response = await fetch(`/api/rooms`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          room_id: newRoomId,
-          user_id: user.id,
-          nickname: nickname,
-        }),
-      });
-
-      const data = await response.json();
-
-      // Validate response and navigate
-      if (data && data.room_id) {
-        router.push(`/rooms/${data.room_id}`);
-      } else {
-        throw new Error("Invalid response from server");
-      }
-    } catch (err: unknown) {
-      console.error("Error creating room:", err);
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Failed to create room. Please try again.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Show loading state while checking authentication
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
