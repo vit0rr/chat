@@ -11,13 +11,13 @@ export async function GET(req: NextRequest) {
         },
     });
 
+    if (response.status === 401) {
+        return NextResponse.json({ error: "Unauthorized", shouldSignOut: true }, { status: 401 });
+    }
+
     const data = await response.json();
 
-    return NextResponse.json(data.rooms, {
-        headers: {
-            'X-New-Token': response.headers.get('X-New-Token') || ''
-        }
-    });
+    return NextResponse.json(data.rooms);
 }
 
 export async function POST(req: NextRequest) {
@@ -35,6 +35,10 @@ export async function POST(req: NextRequest) {
             nickname: nickname,
         }),
     });
+
+    if (response.status === 401) {
+        return NextResponse.json({ error: "Unauthorized", shouldSignOut: true }, { status: 401 });
+    }
 
     const data = await response.json();
 

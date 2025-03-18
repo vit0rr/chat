@@ -90,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ) {
       router.push("/rooms");
     }
-  }, [isAuthenticated, pathname, router, isLoading]);
+  }, [isAuthenticated, pathname, router, isLoading, token]);
 
   const login = (token: string, userId: string, nickname: string) => {
     const userData = {
