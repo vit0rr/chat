@@ -47,7 +47,16 @@ func NewService(deps *deps.Deps, db *mongo.Database) *Service {
 	}
 }
 
-// Register creates a new user account
+// @summary Register New User
+// @description Creates a new user account with email, password, and nickname
+// @tags auth
+// @router /api/v1/auth/register [post]
+// @param body body RegisterRequest true "User registration information"
+// @produce application/json
+// @success 201 {object} AuthResponse "User successfully registered with authentication token"
+// @failure 400 {object} error "Bad request - Missing required fields or invalid input"
+// @failure 409 {object} error "Conflict - User with this email already exists"
+// @failure 500 {object} error "Internal server error"
 func (s *Service) Register(ctx context.Context, b io.ReadCloser) (interface{}, error) {
 	var req RegisterRequest
 	err := json.NewDecoder(b).Decode(&req)
@@ -103,7 +112,16 @@ func (s *Service) Register(ctx context.Context, b io.ReadCloser) (interface{}, e
 	}, nil
 }
 
-// Login authenticates a user and returns a JWT token
+// @summary User Login
+// @description Authenticates a user with email and password, returning a JWT token
+// @tags auth
+// @router /api/v1/auth/login [post]
+// @param body body LoginRequest true "User login credentials"
+// @produce application/json
+// @success 200 {object} AuthResponse "User successfully authenticated with token"
+// @failure 400 {object} error "Bad request - Missing required fields"
+// @failure 401 {object} error "Unauthorized - Invalid email or password"
+// @failure 500 {object} error "Internal server error"
 func (s *Service) Login(ctx context.Context, b io.ReadCloser) (interface{}, error) {
 	var req LoginRequest
 	err := json.NewDecoder(b).Decode(&req)
@@ -151,7 +169,19 @@ func (s *Service) Login(ctx context.Context, b io.ReadCloser) (interface{}, erro
 	}, nil
 }
 
-// DeleteUser deletes a user account
+// @summary Delete User Account
+// @description Permanently removes a user account and all associated data
+// @tags auth
+// @router /api/v1/auth/user [delete]
+// @param body body DeleteUserRequest true "User ID to delete"
+// @produce application/json
+// @security JWT
+// @success 200 {object} map[string]string "User successfully deleted"
+// @failure 400 {object} error "Bad request - Missing user ID"
+// @failure 401 {object} error "Unauthorized - Missing or invalid authentication"
+// @failure 403 {object} error "Forbidden - Not authorized to delete this user"
+// @failure 404 {object} error "Not found - User doesn't exist"
+// @failure 500 {object} error "Internal server error"
 func (s *Service) DeleteUser(ctx context.Context, b io.ReadCloser) (interface{}, error) {
 	var req DeleteUserRequest
 	err := json.NewDecoder(b).Decode(&req)

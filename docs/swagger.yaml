@@ -1,4 +1,34 @@
 definitions:
+  authservice.AuthResponse:
+    properties:
+      nickname:
+        type: string
+      token:
+        type: string
+      user_id:
+        type: string
+    type: object
+  authservice.DeleteUserRequest:
+    properties:
+      user_id:
+        type: string
+    type: object
+  authservice.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  authservice.RegisterRequest:
+    properties:
+      email:
+        type: string
+      nickname:
+        type: string
+      password:
+        type: string
+    type: object
   chatservice.ChatMessage:
     properties:
       content:
@@ -30,6 +60,13 @@ definitions:
       error_message:
         type: string
     type: object
+  chatservice.LockRoomBody:
+    properties:
+      room_id:
+        type: string
+      user_id:
+        type: string
+    type: object
   chatservice.MessageType:
     enum:
     - text
@@ -41,22 +78,11 @@ definitions:
     x-enum-varnames:
     - TextMessage
     - SystemMessage
-  chatservice.RegisterUserResponse:
+  chatservice.RegisterUserBody:
     properties:
       nickname:
         type: string
-      room_id:
-        type: string
       user_id:
-        type: string
-    type: object
-  chatservice.Response:
-    properties:
-      keys:
-        items:
-          type: string
-        type: array
-      message:
         type: string
     type: object
   chatservice.RoomDetails:
@@ -71,19 +97,56 @@ definitions:
         type: string
       users:
         items:
-          $ref: '#/definitions/chatservice.RoomUser'
+          $ref: '#/definitions/repositories.UserRef'
         type: array
     type: object
-  chatservice.RoomList:
+  chatservice.RoomListDetails:
+    properties:
+      created_at:
+        type: string
+      locked_by:
+        type: string
+      room_id:
+        type: string
+      updated_at:
+        type: string
+      users:
+        items:
+          $ref: '#/definitions/chatservice.RoomListUser'
+        type: array
+    type: object
+  chatservice.RoomListUser:
+    properties:
+      id:
+        type: string
+      nickname:
+        type: string
+    type: object
+  chatservice.RoomsList:
     properties:
       rooms:
         items:
-          $ref: '#/definitions/chatservice.RoomDetails'
+          $ref: '#/definitions/chatservice.RoomListDetails'
         type: array
     type: object
-  chatservice.RoomUser:
+  repositories.Room:
     properties:
-      external_id:
+      createdAt:
+        type: string
+      id:
+        type: string
+      lockedBy:
+        type: string
+      updatedAt:
+        type: string
+      users:
+        items:
+          $ref: '#/definitions/repositories.UserRef'
+        type: array
+    type: object
+  repositories.UserRef:
+    properties:
+      id:
         type: string
       nickname:
         type: string
@@ -93,114 +156,362 @@ info:
     email: support@swagger.io
     name: API Support
     url: http://www.swagger.io/support
-  description: Chat Service API
+  description: Chat API
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
   termsOfService: http://swagger.io/terms/
-  title: Chat Service API
+  title: Chat API
   version: "1.0"
 paths:
-  /api/get-messages/:
-    get:
-      description: Will return the messages of a room. It receives a room_id, page
-        and limit by query params.
+  /api/v1/auth/login:
+    post:
+      description: Authenticates a user with email and password, returning a JWT token
+      parameters:
+      - description: User login credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/authservice.LoginRequest'
+      produces:
+      - application/json
       responses:
         "200":
-          description: Successfully processed chat
+          description: User successfully authenticated with token
           schema:
-            items:
-              $ref: '#/definitions/chatservice.ChatMessage'
-            type: array
+            $ref: '#/definitions/authservice.AuthResponse'
         "400":
-          description: Invalid request body
-          schema:
-            $ref: '#/definitions/chatservice.Response'
+          description: Bad request - Missing required fields
+          schema: {}
+        "401":
+          description: Unauthorized - Invalid email or password
+          schema: {}
         "500":
-          description: Internal server error during processing
+          description: Internal server error
+          schema: {}
+      summary: User Login
+      tags:
+      - auth
+  /api/v1/auth/register:
+    post:
+      description: Creates a new user account with email, password, and nickname
+      parameters:
+      - description: User registration information
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/authservice.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User successfully registered with authentication token
           schema:
-            $ref: '#/definitions/chatservice.Response'
-      summary: GetMessages
-  /api/get-rooms/:
+            $ref: '#/definitions/authservice.AuthResponse'
+        "400":
+          description: Bad request - Missing required fields or invalid input
+          schema: {}
+        "409":
+          description: Conflict - User with this email already exists
+          schema: {}
+        "500":
+          description: Internal server error
+          schema: {}
+      summary: Register New User
+      tags:
+      - auth
+  /api/v1/auth/user:
+    delete:
+      description: Permanently removes a user account and all associated data
+      parameters:
+      - description: User ID to delete
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/authservice.DeleteUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User successfully deleted
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad request - Missing user ID
+          schema: {}
+        "401":
+          description: Unauthorized - Missing or invalid authentication
+          schema: {}
+        "403":
+          description: Forbidden - Not authorized to delete this user
+          schema: {}
+        "404":
+          description: Not found - User doesn't exist
+          schema: {}
+        "500":
+          description: Internal server error
+          schema: {}
+      security:
+      - JWT: []
+      summary: Delete User Account
+      tags:
+      - auth
+  /api/v1/rooms:
     get:
-      description: Returns a paginated list of all chat rooms
+      description: Returns a paginated list of all available chat rooms with their
+        users and status
       parameters:
       - description: 'Page number (default: 1)'
         in: query
         minimum: 1
         name: page
         type: integer
-      - description: 'Items per page (default: 10)'
+      - description: 'Items per page (default: 50)'
         in: query
         maximum: 100
         minimum: 1
         name: limit
         type: integer
+      produces:
+      - application/json
       responses:
         "200":
           description: List of chat rooms retrieved successfully
           schema:
-            $ref: '#/definitions/chatservice.RoomList'
+            $ref: '#/definitions/chatservice.RoomsList'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/chatservice.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/chatservice.Error'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/chatservice.Error'
+      summary: List All Chat Rooms
+      tags:
+      - rooms
+  /api/v1/rooms/{roomId}:
+    get:
+      description: Returns detailed information about a specific chat room by ID
+      parameters:
+      - description: Room ID (required)
+        in: path
+        name: roomId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Room details retrieved successfully
+          schema:
+            $ref: '#/definitions/chatservice.RoomDetails'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/chatservice.Error'
         "404":
           description: Room not found
           schema:
             $ref: '#/definitions/chatservice.Error'
         "500":
-          description: Internal server error during processing
+          description: Internal server error
           schema:
             $ref: '#/definitions/chatservice.Error'
-      summary: GetRooms
-  /api/lock-room/:
+      summary: Get Room Details
+      tags:
+      - rooms
+  /api/v1/rooms/{roomId}/lock:
     post:
-      description: Will lock a room for the user. If the room is already locked by
-        the user, it will unlock the room.
+      description: Controls the lock status of a chat room. Locks room for exclusive
+        use by a user or unlocks if already locked by same user.
+      parameters:
+      - description: Room ID (required)
+        in: path
+        name: roomId
+        required: true
+        type: string
+      - description: User information for locking the room
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/chatservice.LockRoomBody'
+      produces:
+      - application/json
       responses:
         "200":
-          description: Successfully processed chat
+          description: Room lock status updated successfully
           schema:
-            $ref: '#/definitions/chatservice.Response'
+            additionalProperties:
+              type: string
+            type: object
         "400":
-          description: Invalid request body
+          description: Bad request or missing required fields
           schema:
-            $ref: '#/definitions/chatservice.Response'
+            $ref: '#/definitions/chatservice.Error'
+        "403":
+          description: User not authorized to lock room
+          schema:
+            $ref: '#/definitions/chatservice.Error'
+        "404":
+          description: Room not found
+          schema:
+            $ref: '#/definitions/chatservice.Error'
         "500":
-          description: Internal server error during processing
+          description: Internal server error
           schema:
-            $ref: '#/definitions/chatservice.Response'
-      summary: LockRoom
-  /api/register-user/:
-    post:
-      description: Will register a user in a room. If the user is already registered,
-        it will return the room without error.
-      responses:
-        "200":
-          description: Successfully processed chat
-          schema:
-            $ref: '#/definitions/chatservice.RegisterUserResponse'
-        "400":
-          description: Invalid request body
-          schema:
-            $ref: '#/definitions/chatservice.Response'
-        "500":
-          description: Internal server error during processing
-          schema:
-            $ref: '#/definitions/chatservice.Response'
-      summary: RegisterUser
-  /api/ws/:
+            $ref: '#/definitions/chatservice.Error'
+      summary: Lock or Unlock Room
+      tags:
+      - rooms
+  /api/v1/rooms/{roomId}/messages:
     get:
-      description: WebSocket
+      description: Fetches paginated messages for a specific chat room
+      parameters:
+      - description: Room ID (required)
+        in: path
+        name: roomId
+        required: true
+        type: string
+      - description: 'Page number (default: 1)'
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - description: 'Items per page (default: 50)'
+        in: query
+        maximum: 100
+        minimum: 1
+        name: limit
+        type: integer
+      produces:
+      - application/json
       responses:
         "200":
-          description: Successfully processed chat
+          description: Messages retrieved successfully
           schema:
-            $ref: '#/definitions/chatservice.Response'
+            items:
+              $ref: '#/definitions/chatservice.ChatMessage'
+            type: array
         "400":
-          description: Invalid request body
+          description: Bad request or missing room ID
           schema:
-            $ref: '#/definitions/chatservice.Response'
+            $ref: '#/definitions/chatservice.Error'
+        "404":
+          description: Room not found
+          schema:
+            $ref: '#/definitions/chatservice.Error'
         "500":
-          description: Internal server error during processing
+          description: Internal server error
           schema:
-            $ref: '#/definitions/chatservice.Response'
-      summary: WebSocket
+            $ref: '#/definitions/chatservice.Error'
+      summary: Retrieve Room Messages
+      tags:
+      - messages
+      - rooms
+  /api/v1/rooms/{roomId}/register-user:
+    post:
+      description: Adds a user to a chat room. Creates new user if needed. Returns
+        existing room if user already registered.
+      parameters:
+      - description: Room ID (required)
+        in: path
+        name: roomId
+        required: true
+        type: string
+      - description: User information for registration
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/chatservice.RegisterUserBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User successfully registered to room
+          schema:
+            $ref: '#/definitions/repositories.Room'
+        "400":
+          description: Bad request or invalid input
+          schema:
+            $ref: '#/definitions/chatservice.Error'
+        "404":
+          description: Room not found
+          schema:
+            $ref: '#/definitions/chatservice.Error'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/chatservice.Error'
+      summary: Register User to Room
+      tags:
+      - rooms
+      - users
+  /api/v1/ws:
+    get:
+      description: Establishes a WebSocket connection for real-time messaging in a
+        chat room
+      parameters:
+      - description: Authentication token (required)
+        in: query
+        name: token
+        required: true
+        type: string
+      - description: User ID (required)
+        in: query
+        name: user_id
+        required: true
+        type: string
+      - description: Room ID (required)
+        in: query
+        name: room_id
+        required: true
+        type: string
+      - description: User's display name (required)
+        in: query
+        name: nickname
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "101":
+          description: WebSocket connection successfully upgraded
+          schema:
+            $ref: '#/definitions/chatservice.ChatMessage'
+        "400":
+          description: Missing required parameters or invalid request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized - Missing or invalid token
+          schema:
+            type: string
+        "403":
+          description: Forbidden - User not authorized to join room
+          schema:
+            type: string
+        "404":
+          description: Room not found
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Real-time Chat WebSocket Connection
+      tags:
+      - websocket
+      - rooms
 swagger: "2.0"

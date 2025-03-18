@@ -12,7 +12,6 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
-	"github.com/golang-jwt/jwt"
 	"github.com/vit0rr/chat/api/constants"
 
 	"github.com/redis/go-redis/v9"
@@ -63,31 +62,14 @@ type Service struct {
 	redis *redis.Client
 }
 
-// Response is a generic response structure
-type Response struct {
-	Message string   `json:"message"`
-	Keys    []string `json:"keys"`
-}
-
-// NewChatServiceBody is the body of the new chat service
-type NewChatServiceBody struct {
-	Message string `json:"message"`
-}
-
 // RegisterUserBody is the body of the register user
 type RegisterUserBody struct {
 	UserID   string `json:"user_id"`
 	Nickname string `json:"nickname"`
 }
 
-// GetMessagesQuery is the query of the get messages
 type GetMessagesQuery struct {
 	RoomID   string `json:"room_id"`
-	PageStr  string `json:"page_str"`
-	LimitStr string `json:"limit_str"`
-}
-
-type GetOnlineUsersFromAllRoomsQuery struct {
 	PageStr  string `json:"page_str"`
 	LimitStr string `json:"limit_str"`
 }
@@ -95,30 +77,6 @@ type GetOnlineUsersFromAllRoomsQuery struct {
 type GetRoomsQuery struct {
 	PageStr  string `json:"page_str"`
 	LimitStr string `json:"limit_str"`
-}
-
-type GetUsersQuery struct {
-	PageStr  string `json:"page_str"`
-	LimitStr string `json:"limit_str"`
-}
-
-type GetUsersWhoSentMessagesInTheLastDaysQuery struct {
-	PageStr  string `json:"page_str"`
-	LimitStr string `json:"limit_str"`
-	Days     int    `json:"days"`
-}
-
-type GetUserContactsQuery struct {
-	ID       string `json:"id"`
-	PageStr  string `json:"page_str"`
-	LimitStr string `json:"limit_str"`
-}
-
-// RegisterUserResponse is the response of the register user
-type RegisterUserResponse struct {
-	UserID   string `json:"user_id"`
-	RoomID   string `json:"room_id"`
-	Nickname string `json:"nickname"`
 }
 
 // LockRoomBody is the body of the lock room
@@ -165,15 +123,6 @@ type ServiceError struct {
 	Code    int
 }
 
-type Claims struct {
-	Email string `json:"email"`
-	Exp int64 `json:"exp"`
-	Iat int64 `json:"iat"`
-	Nickname string `json:"nickname"`
-	Sub string `json:"sub"`
-	jwt.StandardClaims
-}
-
 func (e ServiceError) Error() string {
 	return e.Message
 }
@@ -202,12 +151,21 @@ func NewService(deps *deps.Deps, db *mongo.Database, redisClient *redis.Client) 
 	}
 }
 
-// @summary WebSocket
-// @description WebSocket
-// @router /api/ws/ [get]
-// @success 200         {object}    Response                         "Successfully processed chat"
-// @failure 400         {object}    Response                         "Invalid request body"
-// @failure 500         {object}    Response                         "Internal server error during processing"
+// @summary Real-time Chat WebSocket Connection
+// @description Establishes a WebSocket connection for real-time messaging in a chat room
+// @tags websocket,rooms
+// @router /api/v1/ws [get]
+// @param token query string true "Authentication token (required)"
+// @param user_id query string true "User ID (required)"
+// @param room_id query string true "Room ID (required)"
+// @param nickname query string true "User's display name (required)"
+// @produce application/json
+// @success 101 {object} ChatMessage "WebSocket connection successfully upgraded"
+// @failure 400 {string} string "Missing required parameters or invalid request"
+// @failure 401 {string} string "Unauthorized - Missing or invalid token"
+// @failure 403 {string} string "Forbidden - User not authorized to join room"
+// @failure 404 {string} string "Room not found"
+// @failure 500 {string} string "Internal server error"
 func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}, error) {
 	ctx := context.Background()
 
@@ -426,12 +384,17 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 	}
 }
 
-// @summary RegisterUser
-// @description Will register a user in a room. If the user is already registered, it will return the room without error.
-// @router /api/register-user/ [post]
-// @success 200         {object}    RegisterUserResponse			 "Successfully processed chat"
-// @failure 400         {object}    Response                         "Invalid request body"
-// @failure 500         {object}    Response                         "Internal server error during processing"
+// @summary Register User to Room
+// @description Adds a user to a chat room. Creates new user if needed. Returns existing room if user already registered.
+// @tags rooms,users
+// @router /api/v1/rooms/{roomId}/register-user [post]
+// @param roomId path string true "Room ID (required)"
+// @param body body RegisterUserBody true "User information for registration"
+// @produce application/json
+// @success 200 {object} repositories.Room "User successfully registered to room"
+// @failure 400 {object} Error "Bad request or invalid input"
+// @failure 404 {object} Error "Room not found"
+// @failure 500 {object} Error "Internal server error"
 func (s *Service) RegisterUser(c context.Context, b io.ReadCloser, db *mongo.Database, roomID string) (interface{}, Error) {
 	var body RegisterUserBody
 	err := json.NewDecoder(b).Decode(&body)
@@ -575,12 +538,18 @@ func (s *Service) RegisterUser(c context.Context, b io.ReadCloser, db *mongo.Dat
 	return updatedRoom, Error{}
 }
 
-// @summary LockRoom
-// @description Will lock a room for the user. If the room is already locked by the user, it will unlock the room.
-// @router /api/lock-room/ [post]
-// @success 200         {object}    Response                         "Successfully processed chat"
-// @failure 400         {object}    Response                         "Invalid request body"
-// @failure 500         {object}    Response                         "Internal server error during processing"
+// @summary Lock or Unlock Room
+// @description Controls the lock status of a chat room. Locks room for exclusive use by a user or unlocks if already locked by same user.
+// @tags rooms
+// @router /api/v1/rooms/{roomId}/lock [post]
+// @param roomId path string true "Room ID (required)"
+// @param body body LockRoomBody true "User information for locking the room"
+// @produce application/json
+// @success 200 {object} map[string]string "Room lock status updated successfully"
+// @failure 400 {object} Error "Bad request or missing required fields"
+// @failure 403 {object} Error "User not authorized to lock room"
+// @failure 404 {object} Error "Room not found"
+// @failure 500 {object} Error "Internal server error"
 func (s *Service) LockRoom(c context.Context, b io.ReadCloser, roomID string) (interface{}, Error) {
 	var body LockRoomBody
 	err := json.NewDecoder(b).Decode(&body)
@@ -749,12 +718,18 @@ func (s *Service) LockRoom(c context.Context, b io.ReadCloser, roomID string) (i
 	return map[string]string{"status": "room locked"}, Error{}
 }
 
-// @summary GetMessages
-// @description Will return the messages of a room. It receives a room_id, page and limit by query params.
-// @router /api/get-messages/ [get]
-// @success 200         {object}    []ChatMessage			 "Successfully processed chat"
-// @failure 400         {object}    Response                         "Invalid request body"
-// @failure 500         {object}    Response                         "Internal server error during processing"
+// @summary Retrieve Room Messages
+// @description Fetches paginated messages for a specific chat room
+// @tags messages,rooms
+// @router /api/v1/rooms/{roomId}/messages [get]
+// @param roomId path string true "Room ID (required)"
+// @param page query integer false "Page number (default: 1)" minimum(1)
+// @param limit query integer false "Items per page (default: 50)" minimum(1) maximum(100)
+// @produce application/json
+// @success 200 {array} ChatMessage "Messages retrieved successfully"
+// @failure 400 {object} Error "Bad request or missing room ID"
+// @failure 404 {object} Error "Room not found"
+// @failure 500 {object} Error "Internal server error"
 func (s *Service) GetMessages(ctx context.Context, query GetMessagesQuery) ([]ChatMessage, Error) {
 	if query.RoomID == "" {
 		if svcErr := NewServiceError(constants.RoomIDRequired); svcErr != nil {
@@ -844,58 +819,6 @@ func (s *Service) GetMessages(ctx context.Context, query GetMessagesQuery) ([]Ch
 	return messages, Error{}
 }
 
-// broadcastToRoom sends a message to all clients in a room by:
-// 1. Saving the message to MongoDB for persistence
-// 2. Publishing the message to Redis for real-time distribution
-func (s *Service) broadcastToRoom(ctx context.Context, roomID string, message ChatMessage) {
-	// Save message to MongoDB
-	_, err := repositories.CreateMessage(ctx, s.Mongo, repositories.CreateMessageData{
-		RoomID:     message.RoomId,
-		Message:    message.Content,
-		FromUserID: message.SenderId,
-		Nickname:   message.Nickname,
-	})
-
-	if err != nil {
-		log.Error(ctx, "Failed to save message to database",
-			log.AnyAttr("room_id", roomID),
-			log.AnyAttr("error", err))
-	}
-
-	// Publish message to Redis channel
-	messageJSON, err := json.Marshal(message)
-	if err != nil {
-		log.Error(ctx, "Failed to marshal message",
-			log.AnyAttr("room_id", roomID),
-			log.AnyAttr("error", err))
-		return
-	}
-
-	err = s.redis.Publish(ctx, roomID, messageJSON).Err()
-	if err != nil {
-		log.Error(ctx, "Failed to publish message to Redis",
-			log.AnyAttr("room_id", roomID),
-			log.AnyAttr("error", err))
-	}
-}
-
-func (s *Service) CreateUser(ctx context.Context, body io.ReadCloser) (interface{}, error) {
-	defer body.Close()
-
-	var user repositories.CreateUserData
-	err := json.NewDecoder(body).Decode(&user)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode user: %v", err)
-	}
-
-	result, err := repositories.CreateUser(ctx, s.Mongo, user)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create user: %v", err)
-	}
-
-	return result, nil
-}
-
 func (s *Service) UpdateUser(ctx context.Context, ID string, body io.ReadCloser) (interface{}, Error) {
 	defer body.Close()
 
@@ -937,6 +860,16 @@ func (s *Service) UpdateUser(ctx context.Context, ID string, body io.ReadCloser)
 	return result, Error{}
 }
 
+// @summary Get Room Details
+// @description Returns detailed information about a specific chat room by ID
+// @tags rooms
+// @router /api/v1/rooms/{roomId} [get]
+// @param roomId path string true "Room ID (required)"
+// @produce application/json
+// @success 200 {object} RoomDetails "Room details retrieved successfully"
+// @failure 400 {object} Error "Bad request"
+// @failure 404 {object} Error "Room not found"
+// @failure 500 {object} Error "Internal server error"
 func (s *Service) GetRoom(ctx context.Context, roomID string) (RoomDetails, Error) {
 	room, err := repositories.GetRoom(ctx, s.Mongo, repositories.GetRoomData{
 		RoomID: roomID,
@@ -970,14 +903,17 @@ func (s *Service) GetRoom(ctx context.Context, roomID string) (RoomDetails, Erro
 	}, Error{}
 }
 
-// @summary GetRooms
-// @description Returns a paginated list of all chat rooms
-// @router /api/get-rooms/ [get]
-// @param   page   query    integer  false  "Page number (default: 1)"  minimum(1)
-// @param   limit  query    integer  false  "Items per page (default: 10)"  minimum(1) maximum(100)
-// @success 200    {object} RoomList "List of chat rooms retrieved successfully"
-// @failure 404    {object} Error    "Room not found"
-// @failure 500    {object} Error    "Internal server error during processing"
+// @summary List All Chat Rooms
+// @description Returns a paginated list of all available chat rooms with their users and status
+// @tags rooms
+// @router /api/v1/rooms [get]
+// @param page query integer false "Page number (default: 1)" minimum(1)
+// @param limit query integer false "Items per page (default: 50)" minimum(1) maximum(100)
+// @produce application/json
+// @success 200 {object} RoomsList "List of chat rooms retrieved successfully"
+// @failure 400 {object} Error "Bad request"
+// @failure 401 {object} Error "Unauthorized"
+// @failure 500 {object} Error "Internal server error"
 func (s *Service) GetRooms(ctx context.Context, query GetRoomsQuery) (RoomsList, Error) {
 	page := 1
 	limit := 50
@@ -1045,6 +981,41 @@ func (s *Service) GetRooms(ctx context.Context, query GetRoomsQuery) (RoomsList,
 	return RoomsList{
 		Rooms: responseRooms,
 	}, Error{}
+}
+
+// broadcastToRoom sends a message to all clients in a room by:
+// 1. Saving the message to MongoDB for persistence
+// 2. Publishing the message to Redis for real-time distribution
+func (s *Service) broadcastToRoom(ctx context.Context, roomID string, message ChatMessage) {
+	// Save message to MongoDB
+	_, err := repositories.CreateMessage(ctx, s.Mongo, repositories.CreateMessageData{
+		RoomID:     message.RoomId,
+		Message:    message.Content,
+		FromUserID: message.SenderId,
+		Nickname:   message.Nickname,
+	})
+
+	if err != nil {
+		log.Error(ctx, "Failed to save message to database",
+			log.AnyAttr("room_id", roomID),
+			log.AnyAttr("error", err))
+	}
+
+	// Publish message to Redis channel
+	messageJSON, err := json.Marshal(message)
+	if err != nil {
+		log.Error(ctx, "Failed to marshal message",
+			log.AnyAttr("room_id", roomID),
+			log.AnyAttr("error", err))
+		return
+	}
+
+	err = s.redis.Publish(ctx, roomID, messageJSON).Err()
+	if err != nil {
+		log.Error(ctx, "Failed to publish message to Redis",
+			log.AnyAttr("room_id", roomID),
+			log.AnyAttr("error", err))
+	}
 }
 
 func newError(errKey string) Error {
