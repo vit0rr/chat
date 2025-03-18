@@ -2,7 +2,7 @@
 
 A full-stack real-time chat application featuring a Go backend with WebSockets, MongoDB for persistent storage, Redis for pub/sub functionality, and a React/Next.js frontend.
 
-![print showing the chat landing page](./img/chat.png "Chat Landing Page")
+<img src="./img/chat.png" alt="print showing the chat landing page" style="border-radius: 6px;"/>
 
 
 ## 🌟 Features
