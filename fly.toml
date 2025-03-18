@@ -11,6 +11,7 @@ primary_region = 'gig'
 [env]
   BASE_URL = 'https://chat-vit0rrs-projects.vercel.app/'
   PORT = '8080'
+  ENV = 'production'
 
 [http_service]
   internal_port = 8080
