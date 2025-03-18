@@ -10,7 +10,7 @@ import {
 import { useRouter, usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
-type User = {
+export type User = {
   id: string;
   nickname: string;
 };
