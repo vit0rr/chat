@@ -71,7 +71,6 @@ func (router *Router) BuildRoutes(deps *deps.Deps) *chi.Mux {
 				r.Get("/", telemetry.HandleFuncLogger(router.chatService.GetRooms))
 				r.Get("/{roomId}", telemetry.HandleFuncLogger(router.chatService.GetRoom))
 				r.Get("/{roomId}/messages", telemetry.HandleFuncLogger(router.chatService.GetMessages))
-				r.Get("/{roomId}/online-users", telemetry.HandleFuncLogger(router.chatService.GetOnlineUsersFromARoom))
 				r.Post("/{roomId}/register-user", telemetry.HandleFuncLogger(router.chatService.RegisterUser))
 				r.Post("/{roomId}/lock", telemetry.HandleFuncLogger(router.chatService.LockRoom))
 			})
@@ -79,23 +78,8 @@ func (router *Router) BuildRoutes(deps *deps.Deps) *chi.Mux {
 				r.Use(pkgMiddlware.VerifyApiKey(deps))
 				r.Get("/", telemetry.HandleFuncLogger(router.chatService.GetUsers))
 				r.Get("/{userId}", telemetry.HandleFuncLogger(router.chatService.GetUser))
-				r.Get("/all-online-users", telemetry.HandleFuncLogger(router.chatService.GetOnlineUsersFromAllRooms))
-				r.Get("/{userId}/contacts", telemetry.HandleFuncLogger(router.chatService.GetUserContacts))
 				r.Post("/create-user", telemetry.HandleFuncLogger(router.chatService.CreateUser))
 				r.Patch("/{userId}", telemetry.HandleFuncLogger(router.chatService.UpdateUser))
-			})
-
-			r.Route("/messages", func(r chi.Router) {
-				r.Use(pkgMiddlware.VerifyApiKey(deps))
-				r.Route("/total-sent", func(r chi.Router) {
-					r.Get("/", telemetry.HandleFuncLogger(router.chatService.GetTotalMessagesSent))
-					r.Get("/{roomId}", telemetry.HandleFuncLogger(router.chatService.GetTotalMessagesSentInARoom))
-				})
-			})
-
-			r.Route("/analytics", func(r chi.Router) {
-				r.Use(pkgMiddlware.VerifyApiKey(deps))
-				r.Get("/user-last-messages", telemetry.HandleFuncLogger(router.chatService.GetUsersWhoSentMessagesInTheLastDays))
 			})
 		})
 	})

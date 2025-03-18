@@ -102,57 +102,6 @@ func GetUser(ctx context.Context, db *mongo.Database, data GetUserData) (*User, 
 	return &user, nil
 }
 
-func GetAllOnlineUsersFromARoom(ctx context.Context, db *mongo.Database, data GetAllOnlineUsersFromARoomData) ([]User, error) {
-	collection := db.Collection(constants.UsersCollection)
-
-	room, err := GetRoom(ctx, db, GetRoomData{RoomID: data.RoomID})
-	if err != nil {
-		log.Error(ctx, "Failed to get room", log.ErrAttr(err))
-		return nil, err
-	}
-
-	usersIds := []string{}
-	for _, userObj := range room.Users {
-		usersIds = append(usersIds, userObj.ID)
-	}
-
-	cursor, err := collection.Find(ctx, bson.M{"_id": bson.M{"$in": usersIds}, "activity": "online"})
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, errors.New(constants.ErrorMessages[constants.UserNotFound].Message)
-		}
-
-		log.Error(ctx, constants.ErrorMessages[constants.FailedToGetUsers].Message, log.ErrAttr(err))
-		return nil, errors.New(constants.ErrorMessages[constants.FailedToGetUsers].Message)
-	}
-
-	users := []User{}
-	err = cursor.All(ctx, &users)
-	if err != nil {
-		log.Error(ctx, constants.ErrorMessages[constants.FailedToGetUsers].Message, log.ErrAttr(err))
-		return nil, errors.New(constants.ErrorMessages[constants.FailedToGetUsers].Message)
-	}
-
-	return users, nil
-}
-
-func GetAllOnlineUsers(ctx context.Context, db *mongo.Database, data GetAllOnlineUsersData) (*mongo.Cursor, error) {
-	collection := db.Collection(constants.UsersCollection)
-
-	options := options.Find()
-	options.SetSort(bson.D{{Key: "createdAt", Value: -1}})
-	options.SetLimit(data.Limit)
-	options.SetSkip(data.Skip)
-
-	cursor, err := collection.Find(ctx, bson.M{"activity": "online"})
-	if err != nil {
-		log.Error(ctx, "Failed to get all online users", log.ErrAttr(err))
-	}
-
-	return cursor, nil
-
-}
-
 func GetUsers(ctx context.Context, db *mongo.Database, data GetUserData) (*mongo.Cursor, error) {
 	collection := db.Collection(constants.UsersCollection)
 	options := options.Find()
@@ -193,63 +142,6 @@ func UpdateUser(ctx context.Context, db *mongo.Database, data UpdateUserData) (*
 	}
 
 	return result, nil
-}
-
-func GetUserContacts(ctx context.Context, db *mongo.Database, data GetUserContactsData) (*mongo.Cursor, error) {
-	roomsCollection := db.Collection(constants.RoomsCollection)
-
-	pipeline := []bson.M{
-		{
-			"$match": bson.M{
-				"users.id": data.UserID,
-			},
-		},
-		{
-			"$unwind": "$users",
-		},
-		{
-			"$match": bson.M{
-				"users.id": bson.M{
-					"$ne": data.UserID,
-				},
-			},
-		},
-		{
-			"$group": bson.M{
-				"_id":      "$users.id",
-				"nickname": bson.M{"$first": "$users.nickname"},
-			},
-		},
-		{
-			"$lookup": bson.M{
-				"from":         constants.UsersCollection,
-				"localField":   "_id",
-				"foreignField": "id",
-				"as":           "userDetails",
-			},
-		},
-		{
-			"$unwind": "$userDetails",
-		},
-		{
-			"$project": bson.M{
-				"_id":      0,
-				"nickname": "$userDetails.nickname",
-				"status":   "$userDetails.status",
-				"activity": "$userDetails.activity",
-			},
-		},
-		{"$skip": data.Skip},
-		{"$limit": data.Limit},
-	}
-
-	cursor, err := roomsCollection.Aggregate(ctx, pipeline)
-	if err != nil {
-		log.Error(ctx, "Failed to get user contacts", log.ErrAttr(err))
-		return nil, err
-	}
-
-	return cursor, nil
 }
 
 func GetUserByEmail(ctx context.Context, db *mongo.Database, email string) (*User, error) {

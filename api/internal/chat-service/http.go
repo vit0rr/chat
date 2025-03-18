@@ -2,7 +2,6 @@ package chatservice
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/redis/go-redis/v9"
@@ -160,45 +159,6 @@ func (h *HTTP) UpdateUser(w http.ResponseWriter, r *http.Request) (interface{}, 
 	}, nil
 }
 
-func (h *HTTP) GetOnlineUsersFromARoom(w http.ResponseWriter, r *http.Request) (interface{}, error) {
-	roomID := chi.URLParam(r, "roomId")
-
-	result, svcErr := h.service.GetOnlineUsersFromARoom(r.Context(), roomID)
-	if svcErr.ErrorMessage != nil {
-		code := http.StatusInternalServerError
-		if svcErr.ErrorCode != nil {
-			code = *svcErr.ErrorCode
-		}
-		w.WriteHeader(code)
-		return ErrorResponse{
-			Error:   *svcErr.ErrorMessage,
-			Code:    code,
-			ErrorID: *svcErr.ErrorID,
-		}, nil
-	}
-
-	return result, nil
-}
-
-func (h *HTTP) GetOnlineUsersFromAllRooms(w http.ResponseWriter, r *http.Request) (interface{}, error) {
-	pageStr := r.URL.Query().Get("page")
-	limitStr := r.URL.Query().Get("limit")
-
-	result, err := h.service.GetOnlineUsersFromAllRooms(r.Context(), GetOnlineUsersFromAllRoomsQuery{
-		PageStr:  pageStr,
-		LimitStr: limitStr,
-	})
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return ErrorResponse{
-			Error: err.Error(),
-			Code:  http.StatusBadRequest,
-		}, nil
-	}
-
-	return result, nil
-}
-
 func (h *HTTP) GetRoom(w http.ResponseWriter, r *http.Request) (interface{}, error) {
 	roomID := chi.URLParam(r, "roomId")
 
@@ -238,93 +198,6 @@ func (h *HTTP) GetRooms(w http.ResponseWriter, r *http.Request) (interface{}, er
 			Error:   *roomErr.ErrorMessage,
 			Code:    code,
 			ErrorID: *roomErr.ErrorID,
-		}, nil
-	}
-
-	return result, nil
-}
-
-func (h *HTTP) GetTotalMessagesSent(w http.ResponseWriter, r *http.Request) (interface{}, error) {
-	total, err := h.service.GetTotalMessagesSent(r.Context())
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return ErrorResponse{
-			Error: err.Error(),
-			Code:  http.StatusBadRequest,
-		}, nil
-	}
-
-	return map[string]interface{}{
-		"total": total,
-	}, nil
-}
-
-func (h *HTTP) GetTotalMessagesSentInARoom(w http.ResponseWriter, r *http.Request) (interface{}, error) {
-	roomID := chi.URLParam(r, "roomId")
-
-	total, err := h.service.GetTotalMessagesSentInARoom(r.Context(), roomID)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return ErrorResponse{
-			Error: err.Error(),
-			Code:  http.StatusBadRequest,
-		}, nil
-	}
-
-	return map[string]interface{}{
-		"total": total,
-	}, nil
-}
-
-func (h *HTTP) GetUsersWhoSentMessagesInTheLastDays(w http.ResponseWriter, r *http.Request) (interface{}, error) {
-	pageStr := r.URL.Query().Get("page")
-	limitStr := r.URL.Query().Get("limit")
-	days := r.URL.Query().Get("days")
-
-	if days == "" {
-		days = "30"
-	}
-
-	daysInt, err := strconv.Atoi(days)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return ErrorResponse{
-			Error: err.Error(),
-			Code:  http.StatusBadRequest,
-		}, nil
-	}
-
-	result, err := h.service.GetUsersWhoSentMessagesInTheLastDays(r.Context(), GetUsersWhoSentMessagesInTheLastDaysQuery{
-		PageStr:  pageStr,
-		LimitStr: limitStr,
-		Days:     daysInt,
-	})
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return ErrorResponse{
-			Error: err.Error(),
-			Code:  http.StatusBadRequest,
-		}, nil
-	}
-
-	return result, nil
-}
-
-func (h *HTTP) GetUserContacts(w http.ResponseWriter, r *http.Request) (interface{}, error) {
-	ID := chi.URLParam(r, "id")
-	pageStr := r.URL.Query().Get("page")
-	limitStr := r.URL.Query().Get("limit")
-
-	result, err := h.service.GetUserContacts(r.Context(), GetUserContactsQuery{
-		ID:       ID,
-		PageStr:  pageStr,
-		LimitStr: limitStr,
-	})
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return ErrorResponse{
-			Error: err.Error(),
-			Code:  http.StatusBadRequest,
 		}, nil
 	}
 
