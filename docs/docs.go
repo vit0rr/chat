@@ -24,39 +24,161 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/get-messages/": {
-            "get": {
-                "description": "Will return the messages of a room. It receives a room_id, page and limit by query params.",
-                "summary": "GetMessages",
+        "/api/v1/auth/login": {
+            "post": {
+                "description": "Authenticates a user with email and password, returning a JWT token",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "User Login",
+                "parameters": [
+                    {
+                        "description": "User login credentials",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/authservice.LoginRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "Successfully processed chat",
+                        "description": "User successfully authenticated with token",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/chatservice.ChatMessage"
-                            }
+                            "$ref": "#/definitions/authservice.AuthResponse"
                         }
                     },
                     "400": {
-                        "description": "Invalid request body",
-                        "schema": {
-                            "$ref": "#/definitions/chatservice.Response"
-                        }
+                        "description": "Bad request - Missing required fields",
+                        "schema": {}
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid email or password",
+                        "schema": {}
                     },
                     "500": {
-                        "description": "Internal server error during processing",
-                        "schema": {
-                            "$ref": "#/definitions/chatservice.Response"
-                        }
+                        "description": "Internal server error",
+                        "schema": {}
                     }
                 }
             }
         },
-        "/api/get-rooms/": {
+        "/api/v1/auth/register": {
+            "post": {
+                "description": "Creates a new user account with email, password, and nickname",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Register New User",
+                "parameters": [
+                    {
+                        "description": "User registration information",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/authservice.RegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "User successfully registered with authentication token",
+                        "schema": {
+                            "$ref": "#/definitions/authservice.AuthResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - Missing required fields or invalid input",
+                        "schema": {}
+                    },
+                    "409": {
+                        "description": "Conflict - User with this email already exists",
+                        "schema": {}
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {}
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/user": {
+            "delete": {
+                "security": [
+                    {
+                        "JWT": []
+                    }
+                ],
+                "description": "Permanently removes a user account and all associated data",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Delete User Account",
+                "parameters": [
+                    {
+                        "description": "User ID to delete",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/authservice.DeleteUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User successfully deleted",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - Missing user ID",
+                        "schema": {}
+                    },
+                    "401": {
+                        "description": "Unauthorized - Missing or invalid authentication",
+                        "schema": {}
+                    },
+                    "403": {
+                        "description": "Forbidden - Not authorized to delete this user",
+                        "schema": {}
+                    },
+                    "404": {
+                        "description": "Not found - User doesn't exist",
+                        "schema": {}
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {}
+                    }
+                }
+            }
+        },
+        "/api/v1/rooms": {
             "get": {
-                "description": "Returns a paginated list of all chat rooms",
-                "summary": "GetRooms",
+                "description": "Returns a paginated list of all available chat rooms with their users and status",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rooms"
+                ],
+                "summary": "List All Chat Rooms",
                 "parameters": [
                     {
                         "minimum": 1,
@@ -69,7 +191,7 @@ const docTemplate = `{
                         "maximum": 100,
                         "minimum": 1,
                         "type": "integer",
-                        "description": "Items per page (default: 10)",
+                        "description": "Items per page (default: 50)",
                         "name": "limit",
                         "in": "query"
                     }
@@ -78,7 +200,60 @@ const docTemplate = `{
                     "200": {
                         "description": "List of chat rooms retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/chatservice.RoomList"
+                            "$ref": "#/definitions/chatservice.RoomsList"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/rooms/{roomId}": {
+            "get": {
+                "description": "Returns detailed information about a specific chat room by ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rooms"
+                ],
+                "summary": "Get Room Details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Room ID (required)",
+                        "name": "roomId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Room details retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.RoomDetails"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.Error"
                         }
                     },
                     "404": {
@@ -88,7 +263,7 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "Internal server error during processing",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/chatservice.Error"
                         }
@@ -96,79 +271,270 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/lock-room/": {
+        "/api/v1/rooms/{roomId}/lock": {
             "post": {
-                "description": "Will lock a room for the user. If the room is already locked by the user, it will unlock the room.",
-                "summary": "LockRoom",
+                "description": "Controls the lock status of a chat room. Locks room for exclusive use by a user or unlocks if already locked by same user.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rooms"
+                ],
+                "summary": "Lock or Unlock Room",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Room ID (required)",
+                        "name": "roomId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "User information for locking the room",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.LockRoomBody"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "Successfully processed chat",
+                        "description": "Room lock status updated successfully",
                         "schema": {
-                            "$ref": "#/definitions/chatservice.Response"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "400": {
-                        "description": "Invalid request body",
+                        "description": "Bad request or missing required fields",
                         "schema": {
-                            "$ref": "#/definitions/chatservice.Response"
+                            "$ref": "#/definitions/chatservice.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "User not authorized to lock room",
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Room not found",
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.Error"
                         }
                     },
                     "500": {
-                        "description": "Internal server error during processing",
+                        "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/chatservice.Response"
+                            "$ref": "#/definitions/chatservice.Error"
                         }
                     }
                 }
             }
         },
-        "/api/register-user/": {
-            "post": {
-                "description": "Will register a user in a room. If the user is already registered, it will return the room without error.",
-                "summary": "RegisterUser",
-                "responses": {
-                    "200": {
-                        "description": "Successfully processed chat",
-                        "schema": {
-                            "$ref": "#/definitions/chatservice.RegisterUserResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request body",
-                        "schema": {
-                            "$ref": "#/definitions/chatservice.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error during processing",
-                        "schema": {
-                            "$ref": "#/definitions/chatservice.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/ws/": {
+        "/api/v1/rooms/{roomId}/messages": {
             "get": {
-                "description": "WebSocket",
-                "summary": "WebSocket",
+                "description": "Fetches paginated messages for a specific chat room",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "messages",
+                    "rooms"
+                ],
+                "summary": "Retrieve Room Messages",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Room ID (required)",
+                        "name": "roomId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "Items per page (default: 50)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "Successfully processed chat",
+                        "description": "Messages retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/chatservice.Response"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/chatservice.ChatMessage"
+                            }
                         }
                     },
                     "400": {
-                        "description": "Invalid request body",
+                        "description": "Bad request or missing room ID",
                         "schema": {
-                            "$ref": "#/definitions/chatservice.Response"
+                            "$ref": "#/definitions/chatservice.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Room not found",
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.Error"
                         }
                     },
                     "500": {
-                        "description": "Internal server error during processing",
+                        "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/chatservice.Response"
+                            "$ref": "#/definitions/chatservice.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/rooms/{roomId}/register-user": {
+            "post": {
+                "description": "Adds a user to a chat room. Creates new user if needed. Returns existing room if user already registered.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rooms",
+                    "users"
+                ],
+                "summary": "Register User to Room",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Room ID (required)",
+                        "name": "roomId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "User information for registration",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.RegisterUserBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User successfully registered to room",
+                        "schema": {
+                            "$ref": "#/definitions/repositories.Room"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request or invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Room not found",
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ws": {
+            "get": {
+                "description": "Establishes a WebSocket connection for real-time messaging in a chat room",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "websocket",
+                    "rooms"
+                ],
+                "summary": "Real-time Chat WebSocket Connection",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authentication token (required)",
+                        "name": "token",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "User ID (required)",
+                        "name": "user_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Room ID (required)",
+                        "name": "room_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "User's display name (required)",
+                        "name": "nickname",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "101": {
+                        "description": "WebSocket connection successfully upgraded",
+                        "schema": {
+                            "$ref": "#/definitions/chatservice.ChatMessage"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing required parameters or invalid request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - Missing or invalid token",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - User not authorized to join room",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Room not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 }
@@ -176,6 +542,53 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "authservice.AuthResponse": {
+            "type": "object",
+            "properties": {
+                "nickname": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "authservice.DeleteUserRequest": {
+            "type": "object",
+            "properties": {
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "authservice.LoginRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "authservice.RegisterRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
         "chatservice.ChatMessage": {
             "type": "object",
             "properties": {
@@ -223,6 +636,17 @@ const docTemplate = `{
                 }
             }
         },
+        "chatservice.LockRoomBody": {
+            "type": "object",
+            "properties": {
+                "room_id": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
         "chatservice.MessageType": {
             "type": "string",
             "enum": [
@@ -238,30 +662,13 @@ const docTemplate = `{
                 "SystemMessage"
             ]
         },
-        "chatservice.RegisterUserResponse": {
+        "chatservice.RegisterUserBody": {
             "type": "object",
             "properties": {
                 "nickname": {
                     "type": "string"
                 },
-                "room_id": {
-                    "type": "string"
-                },
                 "user_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "chatservice.Response": {
-            "type": "object",
-            "properties": {
-                "keys": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "message": {
                     "type": "string"
                 }
             }
@@ -284,26 +691,83 @@ const docTemplate = `{
                 "users": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/chatservice.RoomUser"
+                        "$ref": "#/definitions/repositories.UserRef"
                     }
                 }
             }
         },
-        "chatservice.RoomList": {
+        "chatservice.RoomListDetails": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "locked_by": {
+                    "type": "string"
+                },
+                "room_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "users": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/chatservice.RoomListUser"
+                    }
+                }
+            }
+        },
+        "chatservice.RoomListUser": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "nickname": {
+                    "type": "string"
+                }
+            }
+        },
+        "chatservice.RoomsList": {
             "type": "object",
             "properties": {
                 "rooms": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/chatservice.RoomDetails"
+                        "$ref": "#/definitions/chatservice.RoomListDetails"
                     }
                 }
             }
         },
-        "chatservice.RoomUser": {
+        "repositories.Room": {
             "type": "object",
             "properties": {
-                "external_id": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "lockedBy": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "users": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/repositories.UserRef"
+                    }
+                }
+            }
+        },
+        "repositories.UserRef": {
+            "type": "object",
+            "properties": {
+                "id": {
                     "type": "string"
                 },
                 "nickname": {
@@ -320,8 +784,8 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "",
 	BasePath:         "",
 	Schemes:          []string{},
-	Title:            "Chat Service API",
-	Description:      "Chat Service API",
+	Title:            "Chat API",
+	Description:      "Chat API",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",
