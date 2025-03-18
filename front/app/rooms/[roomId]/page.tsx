@@ -1,9 +1,5 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth-context";
-import { Room } from "@/lib/rooms";
 import Link from "next/link";
 import Header from "@/components/Header";
 import Chat from "@/components/Chat";
@@ -13,99 +9,25 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ChevronLeft, Loader2, LockIcon } from "lucide-react";
-import { AxiosError } from "axios";
+import { useRoomId } from "./hooks";
 
 export default function RoomDetailPage({
   params,
 }: {
   params: Promise<{ roomId: string }>;
 }) {
-  const resolvedParams = use(params);
-  const roomId = resolvedParams.roomId;
-
-  const { user, token, isAuthenticated } = useAuth();
-  const [room, setRoom] = useState<Room | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [isJoining, setIsJoining] = useState(false);
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      router.push("/login");
-      return;
-    }
-
-    const fetchRoom = async () => {
-      if (!token || !roomId) return;
-
-      try {
-        setLoading(true);
-        setError("");
-        const response = await fetch(`/api/room?roomId=${roomId}`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const roomData = await response.json();
-        setRoom(roomData);
-      } catch (err: unknown) {
-        console.error("Error fetching room:", err);
-        if (err instanceof Error) {
-          setError(err.message);
-        } else {
-          setError("Failed to load room");
-        }
-        if (err instanceof AxiosError && err.response?.status === 404) {
-          router.push("/rooms");
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRoom();
-  }, [isAuthenticated, token, roomId, router]);
-
-  const isUserInRoom = room?.users?.some(
-    (roomUser) => roomUser.id === user?.id
-  );
-
-  const handleJoinRoom = async () => {
-    if (!user || !token) {
-      router.push("/login");
-      return;
-    }
-
-    try {
-      setIsJoining(true);
-      setError("");
-      await fetch(
-        `/api/room?roomId=${roomId}&userId=${user.id}&nickname=${user.nickname}`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      // Fetch the updated room data
-      const response = await fetch(`/api/room?roomId=${roomId}`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const updatedRoom = await response.json();
-      setRoom(updatedRoom);
-    } catch (err) {
-      console.error("Error joining room:", err);
-      setError(err instanceof Error ? err.message : "Failed to join room");
-    } finally {
-      setIsJoining(false);
-    }
-  };
+  const {
+    isAuthenticated,
+    loading,
+    error,
+    room,
+    roomId,
+    isUserInRoom,
+    handleJoinRoom,
+    isJoining,
+    user,
+    token,
+  } = useRoomId(params);
 
   if (!isAuthenticated) {
     return null;
@@ -179,7 +101,6 @@ export default function RoomDetailPage({
           </Button>
 
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-            {/* Sidebar with room info and members */}
             <Card className="md:col-span-4">
               <CardHeader>
                 <div className="flex justify-between items-center">
@@ -248,7 +169,6 @@ export default function RoomDetailPage({
               </CardContent>
             </Card>
 
-            {/* Chat section */}
             <Card className="md:col-span-8">
               <CardHeader>
                 <CardTitle className="text-lg">Chat</CardTitle>
