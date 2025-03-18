@@ -3,7 +3,6 @@ package repositories
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/vit0rr/chat/api/constants"
@@ -102,25 +101,13 @@ func GetUser(ctx context.Context, db *mongo.Database, data GetUserData) (*User, 
 	return &user, nil
 }
 
-func GetUsers(ctx context.Context, db *mongo.Database, data GetUserData) (*mongo.Cursor, error) {
-	collection := db.Collection(constants.UsersCollection)
-	options := options.Find()
-
-	cursor, err := collection.Find(ctx, options)
-	if err != nil {
-		log.Error(ctx, "Failed to get users", log.ErrAttr(err))
-		return nil, err
-	}
-	return cursor, nil
-}
-
 func UpdateUser(ctx context.Context, db *mongo.Database, data UpdateUserData) (*mongo.UpdateResult, error) {
 	user, err := GetUser(ctx, db, GetUserData{UserID: data.UserID})
 	if err != nil {
 		return nil, err
 	}
 	if user == nil {
-		return nil, fmt.Errorf("user not found")
+		return nil, errors.New(constants.ErrorMessages[constants.UserNotFound].Message)
 	}
 
 	collection := db.Collection(constants.UsersCollection)
@@ -137,8 +124,8 @@ func UpdateUser(ctx context.Context, db *mongo.Database, data UpdateUserData) (*
 
 	result, err := collection.UpdateOne(ctx, filter, update)
 	if err != nil {
-		log.Error(ctx, "Failed to update user", log.ErrAttr(err))
-		return nil, err
+		log.Error(ctx, constants.ErrorMessages[constants.FailedToUpdateUser].Message, log.ErrAttr(err))
+		return nil, errors.New(constants.ErrorMessages[constants.FailedToUpdateUser].Message)
 	}
 
 	return result, nil

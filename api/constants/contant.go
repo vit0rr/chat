@@ -32,6 +32,7 @@ const (
 	FailedToCreateUser          = "Failed to create user"
 	UserIDRequired              = "User ID is required"
 	UserNotAuthorizedToLockRoom = "User not authorized to lock room"
+	FailedToUpdateUser          = "Failed to update user"
 
 	// General errors
 	FailedToDecodeBody = "Failed to decode body"
@@ -95,6 +96,11 @@ var ErrorMessages = map[string]ErrorMessage{
 		Message: UserNotAuthorizedToLockRoom,
 		ID:      "user_not_authorized_to_lock_room",
 		Code:    403,
+	},
+	FailedToUpdateUser: {
+		Message: FailedToUpdateUser,
+		ID:      "failed_update_user",
+		Code:    500,
 	},
 
 	// General errors

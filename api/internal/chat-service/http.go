@@ -110,50 +110,23 @@ func (h *HTTP) LockRoom(w http.ResponseWriter, r *http.Request) (interface{}, er
 	return result, nil
 }
 
-func (h *HTTP) GetUsers(w http.ResponseWriter, r *http.Request) (interface{}, error) {
-
-	pageStr := r.URL.Query().Get("page")
-	limitStr := r.URL.Query().Get("limit")
-
-	result, err := h.service.GetUsers(r.Context(), GetUsersQuery{
-		PageStr:  pageStr,
-		LimitStr: limitStr,
-	})
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return ErrorResponse{
-			Error: err.Error(),
-			Code:  http.StatusBadRequest,
-		}, nil
-	}
-	return result, nil
-}
-
-func (h *HTTP) GetUser(w http.ResponseWriter, r *http.Request) (interface{}, error) {
-	userID := chi.URLParam(r, "userId")
-
-	result, err := h.service.GetUser(r.Context(), userID)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return ErrorResponse{
-			Error: err.Error(),
-			Code:  http.StatusBadRequest,
-		}, nil
-	}
-	return result, nil
-}
-
 func (h *HTTP) UpdateUser(w http.ResponseWriter, r *http.Request) (interface{}, error) {
 	ID := chi.URLParam(r, "id")
 
-	_, err := h.service.UpdateUser(r.Context(), ID, r.Body)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+	_, svcErr := h.service.UpdateUser(r.Context(), ID, r.Body)
+	if svcErr.ErrorMessage != nil {
+		code := http.StatusInternalServerError
+		if svcErr.ErrorCode != nil {
+			code = *svcErr.ErrorCode
+		}
+		w.WriteHeader(code)
 		return ErrorResponse{
-			Error: err.Error(),
-			Code:  http.StatusBadRequest,
+			Error:   *svcErr.ErrorMessage,
+			Code:    code,
+			ErrorID: *svcErr.ErrorID,
 		}, nil
 	}
+	
 	return map[string]interface{}{
 		"message": "User updated successfully",
 	}, nil
@@ -201,18 +174,6 @@ func (h *HTTP) GetRooms(w http.ResponseWriter, r *http.Request) (interface{}, er
 		}, nil
 	}
 
-	return result, nil
-}
-
-func (h *HTTP) CreateUser(w http.ResponseWriter, r *http.Request) (interface{}, error) {
-	result, err := h.service.CreateUser(r.Context(), r.Body)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return ErrorResponse{
-			Error: err.Error(),
-			Code:  http.StatusBadRequest,
-		}, nil
-	}
 	return result, nil
 }
 
