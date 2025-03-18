@@ -43,7 +43,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const checkAuth = () => {
-      const storedToken = localStorage.getItem("token");
+      const storedToken = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("token="))
+        ?.split("=")[1];
       const storedUser = localStorage.getItem("user");
 
       if (storedToken && storedUser) {
@@ -58,7 +61,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         } catch (error) {
           console.error("Error parsing stored user data:", error);
-          localStorage.removeItem("token");
+          document.cookie =
+            "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
           localStorage.removeItem("user");
           setIsAuthenticated(false);
           setUser(null);
@@ -103,8 +107,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(token);
     setIsAuthenticated(true);
 
-    // Store in localStorage
-    localStorage.setItem("token", token);
+    const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+    document.cookie = `token=${token}; path=/; max-age=86400; SameSite=Strict${secure}`;
     localStorage.setItem("user", JSON.stringify(userData));
   };
 
@@ -114,8 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
     setIsAuthenticated(false);
 
-    // Clear localStorage
-    localStorage.removeItem("token");
+    document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     localStorage.removeItem("user");
 
     // Redirect to login
