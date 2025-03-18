@@ -27,10 +27,6 @@ export const useRooms = () => {
                 }
 
                 const roomsData = await roomsResponse.json();
-                const newToken = roomsResponse.headers.get("X-New-Token");
-                if (newToken) {
-                    localStorage.setItem("token", newToken);
-                }
                 setRooms(roomsData);
             } catch (error) {
                 console.error("Error fetching rooms:", error);
