@@ -56,48 +56,10 @@ func JWTAuth(deps *deps.Deps) func(http.Handler) http.Handler {
 				return []byte(deps.Config.JWT.Secret), nil
 			})
 
-			// If token is invalid with current secret, try with old secret
+			// If token is invalid with current secret, return unauthorized error
 			if err != nil || !token.Valid {
-				oldToken, oldErr := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-					return []byte(""), nil
-				})
-
-				if oldErr != nil || !oldToken.Valid {
-					log.Error(r.Context(), "Invalid or expired token", log.ErrAttr(errors.New("invalid or expired token")))
-					http.Error(w, "Invalid or expired token", http.StatusUnauthorized)
-					return
-				}
-
-				// token is valid with old secret, issue a new token
-				claims, ok := oldToken.Claims.(jwt.MapClaims)
-				if !ok {
-					http.Error(w, "Invalid token claims", http.StatusUnauthorized)
-					return
-				}
-
-				userClaims := UserClaims{
-					UserID:   claims["sub"].(string),
-					Email:    claims["email"].(string),
-					Nickname: claims["nickname"].(string),
-				}
-
-				newToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-					"sub":      userClaims.UserID,
-					"email":    userClaims.Email,
-					"nickname": userClaims.Nickname,
-					"exp":      claims["exp"], // Preserve original expiration
-				})
-
-				newTokenString, signErr := newToken.SignedString([]byte(deps.Config.JWT.Secret))
-				if signErr != nil {
-					http.Error(w, "Error creating new token", http.StatusInternalServerError)
-					return
-				}
-
-				w.Header().Set("X-New-Token", newTokenString)
-
-				ctx := context.WithValue(r.Context(), UserContextKey, userClaims)
-				next.ServeHTTP(w, r.WithContext(ctx))
+				log.Error(r.Context(), "Invalid or expired token", log.ErrAttr(errors.New("invalid or expired token")))
+				http.Error(w, "Invalid or expired token", http.StatusUnauthorized)
 				return
 			}
 

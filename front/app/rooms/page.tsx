@@ -19,14 +19,15 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 
 export default function RoomsPage() {
-  const { token } = useAuth();
+  const { token, logout } = useAuth();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-
   useEffect(() => {
     const fetchRooms = async () => {
-      if (!token) return;
+      if (!token) {
+        return;
+      }
 
       try {
         setLoading(true);
@@ -35,6 +36,12 @@ export default function RoomsPage() {
             Authorization: `Bearer ${token}`,
           },
         });
+
+        if (roomsResponse.status === 401) {
+          logout();
+          return;
+        }
+
         const roomsData = await roomsResponse.json();
         const newToken = roomsResponse.headers.get("X-New-Token");
         if (newToken) {
@@ -49,7 +56,7 @@ export default function RoomsPage() {
     };
 
     fetchRooms();
-  }, [token]);
+  }, [token, logout]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
