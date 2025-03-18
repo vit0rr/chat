@@ -52,7 +52,15 @@ export default function RegisterPage() {
         method: "POST",
         body: JSON.stringify(formData),
       });
-      const { token, user_id, nickname } = await response.json();
+      const data = await response.json();
+
+      if (data.error) {
+        setError(data.error);
+        setLoading(false);
+        return;
+      }
+
+      const { token, user_id, nickname } = data;
       authLogin(token, user_id, nickname);
       router.push("/rooms");
     } catch (err: unknown) {
