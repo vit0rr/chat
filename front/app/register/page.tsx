@@ -1,9 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useAuth } from "@/lib/auth-context";
 import {
   Card,
   CardContent,
@@ -17,62 +14,11 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
-
-type RegisterRequest = {
-  email: string;
-  password: string;
-  nickname: string;
-};
+import { useRegister } from "./hooks";
 
 export default function RegisterPage() {
-  const [formData, setFormData] = useState<RegisterRequest>({
-    email: "",
-    password: "",
-    nickname: "",
-  });
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
-  const { login: authLogin } = useAuth();
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    try {
-      const response = await fetch(`/api/auth/register`, {
-        method: "POST",
-        body: JSON.stringify(formData),
-      });
-      const data = await response.json();
-
-      if (data.error) {
-        setError(data.error);
-        setLoading(false);
-        return;
-      }
-
-      const { token, user_id, nickname } = data;
-      authLogin(token, user_id, nickname);
-      router.push("/rooms");
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("An unknown error occurred");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { error, formData, handleChange, handleSubmit, loading } =
+    useRegister();
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
