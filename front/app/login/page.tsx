@@ -1,8 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth-context";
 import {
   Card,
   CardContent,
@@ -15,40 +12,18 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
+import { useLogin } from "./hooks";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const router = useRouter();
-  const { login } = useAuth();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    const response = await fetch(`/api/auth/login`, {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
-
-    const data = await response.json();
-
-    if (data.error) {
-      setError(data.error);
-      setLoading(false);
-      return;
-    }
-
-    const { token, user_id, nickname } = data;
-    login(token, user_id, nickname);
-    setEmail("");
-    setPassword("");
-    router.push("/rooms");
-  };
+  const {
+    email,
+    error,
+    handleSubmit,
+    loading,
+    password,
+    setEmail,
+    setPassword,
+  } = useLogin();
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
