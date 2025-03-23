@@ -65,12 +65,10 @@ func (s *Service) Register(ctx context.Context, b io.ReadCloser) (interface{}, e
 	}
 	defer b.Close()
 
-	// Validate input
 	if req.Email == "" || req.Password == "" || req.Nickname == "" {
 		return nil, fmt.Errorf("email, password, and nickname are required")
 	}
 
-	// Check if user already exists
 	existingUser, err := repositories.GetUserByEmail(ctx, s.Mongo, req.Email)
 	if err != nil && err != mongo.ErrNoDocuments {
 		return nil, fmt.Errorf("failed to check existing user: %v", err)
@@ -80,13 +78,11 @@ func (s *Service) Register(ctx context.Context, b io.ReadCloser) (interface{}, e
 		return nil, fmt.Errorf("user with this email already exists")
 	}
 
-	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash password: %v", err)
 	}
 
-	// Create user
 	newUser, err := repositories.CreateUser(ctx, s.Mongo, repositories.CreateUserData{
 		Email:    req.Email,
 		Password: string(hashedPassword),
@@ -98,7 +94,6 @@ func (s *Service) Register(ctx context.Context, b io.ReadCloser) (interface{}, e
 		return nil, fmt.Errorf("failed to create user: %v", err)
 	}
 
-	// Generate JWT token
 	userID := newUser.InsertedID.(string)
 	token, err := generateJWT(userID, req.Email, req.Nickname, s.deps.Config.JWT.Secret)
 	if err != nil {
@@ -130,12 +125,10 @@ func (s *Service) Login(ctx context.Context, b io.ReadCloser) (interface{}, erro
 	}
 	defer b.Close()
 
-	// Validate input
 	if req.Email == "" || req.Password == "" {
 		return nil, fmt.Errorf("email and password are required")
 	}
 
-	// Find user by email
 	user, err := repositories.GetUserByEmail(ctx, s.Mongo, req.Email)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -144,19 +137,16 @@ func (s *Service) Login(ctx context.Context, b io.ReadCloser) (interface{}, erro
 		return nil, fmt.Errorf("failed to get user: %v", err)
 	}
 
-	// Verify password
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
 	if err != nil {
 		return nil, fmt.Errorf("invalid email or password")
 	}
 
-	// Generate JWT token
 	token, err := generateJWT(user.Id, user.Email, user.Nickname, s.deps.Config.JWT.Secret)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate token: %v", err)
 	}
 
-	// Update user activity
 	repositories.UpdateUser(ctx, s.Mongo, repositories.UpdateUserData{
 		UserID:   user.Id,
 		Activity: &[]string{"online"}[0],
@@ -190,12 +180,10 @@ func (s *Service) DeleteUser(ctx context.Context, b io.ReadCloser) (interface{},
 	}
 	defer b.Close()
 
-	// Validate input
 	if req.UserID == "" {
 		return nil, fmt.Errorf("user ID is required")
 	}
 
-	// Delete user
 	err = repositories.DeleteUser(ctx, s.Mongo, req.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to delete user: %v", err)
@@ -204,7 +192,6 @@ func (s *Service) DeleteUser(ctx context.Context, b io.ReadCloser) (interface{},
 	return map[string]string{"message": "User deleted successfully"}, nil
 }
 
-// Helper function to generate JWT token
 func generateJWT(userID, email, nickname, secret string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub":      userID,

@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/coder/websocket/wsjson"
 	"github.com/vit0rr/chat/api/constants"
 
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"github.com/vit0rr/chat/pkg/database/repositories"
 	"github.com/vit0rr/chat/pkg/deps"
@@ -32,6 +34,7 @@ type Client struct {
 	mu              sync.Mutex      // Mutex for thread-safe operations
 	isOnline        bool            // Online status of the client
 	lastMessageTime time.Time       // Timestamp of the last message sent by this client
+	connectionID    string          // Unique connection ID
 }
 
 // MessageType defines the type of messages that can be sent
@@ -52,6 +55,7 @@ type ChatMessage struct {
 	SenderId  string      `json:"sender_id"` // ID of message sender
 	Nickname  string      `json:"nickname"`  // Sender's display name
 	Timestamp time.Time   `json:"timestamp"` // When message was sent
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // Service handles the chat service operations including WebSocket,
@@ -144,11 +148,15 @@ func NewServiceError(key string) error {
 
 // NewService creates a new chat service
 func NewService(deps *deps.Deps, db *mongo.Database, redisClient *redis.Client) *Service {
-	return &Service{
+	service := &Service{
 		deps:  deps,
 		Mongo: db,
 		redis: redisClient,
 	}
+	
+	go service.monitorConnections()
+	
+	return service
 }
 
 // @summary Real-time Chat WebSocket Connection
@@ -167,9 +175,8 @@ func NewService(deps *deps.Deps, db *mongo.Database, redisClient *redis.Client) 
 // @failure 404 {string} string "Room not found"
 // @failure 500 {string} string "Internal server error"
 func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}, error) {
-	ctx := context.Background()
+	ctx := r.Context()
 
-	// Extract token from query parameters
 	token := r.URL.Query().Get("token")
 	log.Info(ctx, "Token", log.AnyAttr("token", token))
 	if token == "" {
@@ -220,63 +227,63 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 		return nil, fmt.Errorf("user not authorized to join room")
 	}
 
+	connectionID := uuid.New().String()
 	client := &Client{
 		conn:            conn,
 		roomID:          roomID,
 		userID:          requestedUserID,
 		nickname:        nickname,
+		connectionID:    connectionID,
 		mu:              sync.Mutex{},
 		isOnline:        true,
-		lastMessageTime: time.Time{}, // Initialize with zero time
+		lastMessageTime: time.Now(),
 	}
 
-	// Subscribe to room channel
-	pubsub := s.redis.Subscribe(ctx, roomID)
-	defer pubsub.Close()
-
-	// Add client to Redis room set with expiration
-	roomKey := fmt.Sprintf("room:%s:clients", roomID)
-	onlineKey := fmt.Sprintf("room:%s:online", roomID)
-	pipe := s.redis.Pipeline()
-	pipe.SAdd(ctx, roomKey, requestedUserID)
-	pipe.SAdd(ctx, onlineKey, requestedUserID)
-	pipe.Expire(ctx, roomKey, 24*time.Hour)
-	pipe.Expire(ctx, onlineKey, 1*time.Second)
-	_, err = pipe.Exec(ctx)
-	if err != nil {
-		log.Error(ctx, "Failed to add client to Redis", log.ErrAttr(err))
+	if err := registerClient(ctx, s.redis, client); err != nil {
+		log.Error(ctx, "Failed to register client", log.ErrAttr(err))
 		conn.Close(websocket.StatusInternalError, "Failed to initialize connection")
 		return nil, err
 	}
 
-	repositories.UpdateUser(ctx, s.Mongo, repositories.UpdateUserData{
-		UserID:   requestedUserID,
-		Activity: &[]string{"online"}[0],
-	})
+	heartbeatCtx, cancelHeartbeat := context.WithCancel(ctx)
+	go startHeartbeat(heartbeatCtx, s.redis, client)
 
-	// Cleanup on disconnect
 	defer func() {
-		s.redis.SRem(ctx, roomKey, requestedUserID)
-		s.redis.SRem(ctx, onlineKey, requestedUserID)
-
+		cancelHeartbeat()
+		unregisterClient(ctx, s.redis, client)
+		
 		repositories.UpdateUser(ctx, s.Mongo, repositories.UpdateUserData{
 			UserID:   requestedUserID,
 			Activity: &[]string{"offline"}[0],
 		})
+	}()
 
-		// If room is empty, delete the keys
-		if members, _ := s.redis.SCard(ctx, roomKey).Result(); members == 0 {
-			s.redis.Del(ctx, roomKey, onlineKey)
+	pubsub := s.redis.Subscribe(ctx, roomID)
+	defer pubsub.Close()
+
+	go func() {
+		historyKey := fmt.Sprintf("room:%s:history", roomID)
+		messages, err := s.redis.ZRevRangeByScore(ctx, historyKey, &redis.ZRangeBy{
+			Min: "-inf",
+			Max: "+inf",
+			Count: 50, 
+		}).Result()
+		
+		if err == nil && len(messages) > 0 {
+			for i := len(messages) - 1; i >= 0; i-- {
+				var msg ChatMessage
+				if err := json.Unmarshal([]byte(messages[i]), &msg); err != nil {
+					continue
+				}
+				
+				client.mu.Lock()
+				wsjson.Write(ctx, conn, msg)
+				client.mu.Unlock()
+			}
 		}
 	}()
 
-	// Handle incoming messages
 	go func() {
-		defer func() {
-			conn.Close(websocket.StatusNormalClosure, "")
-		}()
-
-		// Listen for messages from Redis
 		ch := pubsub.Channel()
 		for msg := range ch {
 			var chatMsg ChatMessage
@@ -284,7 +291,14 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 				log.Error(ctx, "Failed to unmarshal message", log.ErrAttr(err))
 				continue
 			}
-
+			
+			if chatMsg.SenderId == requestedUserID && 
+			   chatMsg.Type != SystemMessage &&
+			   chatMsg.Metadata != nil && 
+			   chatMsg.Metadata["connectionID"] == connectionID {
+				continue
+			}
+			
 			client.mu.Lock()
 			err := wsjson.Write(ctx, conn, chatMsg)
 			client.mu.Unlock()
@@ -307,7 +321,6 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 			return nil, err
 		}
 
-		// Validate message length
 		if len(message.Content) > MaxMessageLen {
 			client.mu.Lock()
 			wsjson.Write(ctx, conn, ChatMessage{
@@ -320,10 +333,9 @@ func (s *Service) WebSocket(w http.ResponseWriter, r *http.Request) (interface{}
 			continue
 		}
 
-		// Check for rate limiting
 		canSend, timeToWait := deps.CheckAndUpdateMessageRateLimit(ctx, s.redis, requestedUserID, MessageDelay)
 		if !canSend {
-			wsjson.Write(ctx, conn, ChatMessage{
+			broadcastMessage(ctx, s.redis, ChatMessage{
 				Type:      SystemMessage,
 				Content:   fmt.Sprintf("Please wait %.1f seconds before sending another message", timeToWait),
 				RoomId:    roomID,
@@ -1024,5 +1036,117 @@ func newError(errKey string) Error {
 		ErrorMessage: &errMsg.Message,
 		ErrorID:      &errMsg.ID,
 		ErrorCode:    &errMsg.Code,
+	}
+}
+
+func registerClient(ctx context.Context, redis *redis.Client, client *Client) error {
+	clientKey := fmt.Sprintf("client:%s", client.userID)
+	roomKey := fmt.Sprintf("room:%s:members", client.roomID)
+	
+	pipe := redis.Pipeline()
+	
+	pipe.HSet(ctx, clientKey, map[string]interface{}{
+		"roomID": client.roomID,
+		"nickname": client.nickname,
+		"connectionID": client.connectionID,
+		"lastSeen": time.Now().Unix(),
+	})
+	pipe.Expire(ctx, clientKey, 24*time.Hour)
+	
+	pipe.SAdd(ctx, roomKey, client.userID)
+	pipe.Expire(ctx, roomKey, 24*time.Hour)
+	
+	pipe.SAdd(ctx, "users:online", client.userID)
+	
+	_, err := pipe.Exec(ctx)
+	return err
+}
+
+func unregisterClient(ctx context.Context, redis *redis.Client, client *Client) error {
+	clientKey := fmt.Sprintf("client:%s", client.userID)
+	roomKey := fmt.Sprintf("room:%s:members", client.roomID)
+	
+	pipe := redis.Pipeline()
+	pipe.Del(ctx, clientKey)
+	pipe.SRem(ctx, roomKey, client.userID)
+	pipe.SRem(ctx, "users:online", client.userID)
+	
+	_, err := pipe.Exec(ctx)
+	return err
+}
+
+func heartbeat(ctx context.Context, redis *redis.Client, userID string) error {
+	clientKey := fmt.Sprintf("client:%s", userID)
+	return redis.HSet(ctx, clientKey, "lastSeen", time.Now().Unix()).Err()
+}
+
+func startHeartbeat(ctx context.Context, redis *redis.Client, client *Client) {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	
+	for {
+		select {
+		case <-ticker.C:
+			heartbeat(ctx, redis, client.userID)
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func broadcastMessage(ctx context.Context, redisClient *redis.Client, message ChatMessage) error {
+	message.Metadata = map[string]interface{}{
+		"timestamp": time.Now().Unix(),
+	}
+	
+	payload, err := json.Marshal(message)
+	if err != nil {
+		return err
+	}
+	
+	if err := redisClient.Publish(ctx, message.RoomId, payload).Err(); err != nil {
+		return err
+	}
+	
+	historyKey := fmt.Sprintf("room:%s:history", message.RoomId)
+	return redisClient.ZAdd(ctx, historyKey, redis.Z{
+		Score:  float64(message.Timestamp.Unix()),
+		Member: payload,
+	}).Err()
+}
+
+func (s *Service) monitorConnections() {
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+	
+	for range ticker.C {
+		ctx := context.Background()
+		now := time.Now().Unix()
+		
+		iter := s.redis.Scan(ctx, 0, "client:*", 1000).Iterator()
+		for iter.Next(ctx) {
+			clientKey := iter.Val()
+			clientData, err := s.redis.HGetAll(ctx, clientKey).Result()
+			if err != nil {
+				continue
+			}
+			
+			lastSeen, _ := strconv.ParseInt(clientData["lastSeen"], 10, 64)
+			if now - lastSeen > 120 { 
+				userID := strings.TrimPrefix(clientKey, "client:")
+				roomID := clientData["roomID"]
+				
+				s.redis.Del(ctx, clientKey)
+				s.redis.SRem(ctx, fmt.Sprintf("room:%s:members", roomID), userID)
+				s.redis.SRem(ctx, "users:online", userID)
+				
+				broadcastMessage(ctx, s.redis, ChatMessage{
+					Type:      SystemMessage,
+					Content:   fmt.Sprintf("%s has disconnected (timeout)", clientData["nickname"]),
+					RoomId:    roomID,
+					Timestamp: time.Now(),
+				})
+			}
+		}
 	}
 }
